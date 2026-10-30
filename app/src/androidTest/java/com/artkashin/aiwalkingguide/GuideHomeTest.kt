@@ -11,8 +11,8 @@ class GuideHomeTest {
         compose.onNodeWithText("Гид рядом").assertIsDisplayed()
         compose.onNodeWithText("Начать прогулку").assertIsDisplayed()
         compose.onNodeWithText("Музей",useUnmergedTree=true).performClick()
-        compose.onNodeWithText("Название музея или зала").assertIsDisplayed()
-        compose.onNodeWithText("Выбрать фотографию").assertIsDisplayed()
+        compose.onNodeWithText("Название музея или зала").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Выбрать фотографию").performScrollTo().assertIsDisplayed()
     }
     @Test fun replayRunsWithoutLocationOrAccount() {
         compose.onNodeWithText("Настройки",useUnmergedTree=true).performClick()
