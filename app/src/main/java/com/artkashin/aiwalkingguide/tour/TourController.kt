@@ -40,6 +40,7 @@ class TourController(private val context: Context) {
     val state=mutable.asStateFlow()
     private val wiki=WikipediaPois()
     private var searchJob: Job?=null;private var storyJob: Job?=null;private var museumJob: Job?=null;private var authJob: Job?=null
+    private var authGeneration=0L
     private var generation=0L;private var searchPosition: Position?=null;private var searchAt=0L
     private var lastFix=0L
     private val location=PhoneLocation(context,{onPosition(it)},{notice(it)})
@@ -160,21 +161,22 @@ class TourController(private val context: Context) {
     fun beginAuth(openBrowser: (String)->Unit,requestPlanConsent: Boolean=false) {
         if(state.value.replay) { notice("Сначала завершите GPS-реплей в настройках.");return }
         if(state.value.authenticating)return
+        val attemptGeneration=++authGeneration
         authJob=scope.launch {
             mutable.update{it.copy(authenticating=true)}
             try {
                 val url=account.begin(requestPlanConsent);mutable.update{it.copy(authStatus=AuthStage.WAITING.label)};openBrowser(url)
-                account.finish { stage -> mutable.update{it.copy(authStatus=stage.label)} }
+                account.finish { stage -> if(attemptGeneration==authGeneration)mutable.update{it.copy(authStatus=stage.label)} }
                 refreshConnection()
                 if(account.planEnabled()) { notice("Аккаунт подключён. Разрешение подписки подтверждено; фактический запрос проверьте отдельной кнопкой.");loadModels() }
                 else notice("Вход выполнен. Использование подписки не разрешено. Нажмите «Разрешить использование подписки» в настройках гида.")
             }
             catch(e: CancellationException) { throw e }
-            catch(e: Exception) { val text=if(e is AuthFailure)e.userMessage() else "Не удалось начать вход. Повторите вход с открытым приложением.";mutable.update{it.copy(authStatus=text)};notice(text) }
-            finally { account.cancel();mutable.update{it.copy(authenticating=false,connected=account.connected(),planEnabled=account.planEnabled())} }
+            catch(e: Exception) { if(attemptGeneration==authGeneration) { val text=if(e is AuthFailure)e.userMessage() else "Не удалось начать вход. Повторите вход с открытым приложением.";mutable.update{it.copy(authStatus=text)};notice(text) } }
+            finally { if(attemptGeneration==authGeneration) { account.cancel();mutable.update{it.copy(authenticating=false,connected=account.connected(),planEnabled=account.planEnabled())} } }
         }
     }
-    fun cancelAuth() { account.cancel();authJob?.cancel();mutable.update{it.copy(authenticating=false)};refreshConnection() }
+    fun cancelAuth() { authGeneration++;account.cancel();authJob?.cancel();mutable.update{it.copy(authenticating=false)};refreshConnection() }
     fun logout() { cancelAuth();automatic(false);skip();museumJob?.cancel();val old=account.disconnectLocal();scope.launch { try { account.revoke(old) } catch(_: Exception) { notice("Токены удалены локально. Не удалось подтвердить отзыв на сервере — отключите приложение в настройках ChatGPT.") } };mutable.update{it.copy(connected=false,planEnabled=false,authStatus=account.diagnostic(),models=emptyList(),model="",creditsDisabled=false,museumBusy=false,museumCandidate=null)};notice("Токены удалены с телефона. Отозвать связь с приложением можно в настройках ChatGPT.") }
     fun loadModels() { if(state.value.replay)return;scope.launch {
         try { val models=account.models();mutable.update{it.copy(models=models,model=it.model.takeIf{old->models.any{m->m.first==old}}?:models.firstOrNull()?.first.orEmpty())};if(models.isEmpty())notice("В аккаунте нет доступных моделей.") }

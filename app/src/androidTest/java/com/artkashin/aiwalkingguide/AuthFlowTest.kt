@@ -115,10 +115,14 @@ class AuthFlowTest {
             val finish=async(Dispatchers.IO){runCatching{account.finish()}}
             val page=async(Dispatchers.IO){runCatching{callback(params)}}
             withTimeout(15000){network.exchangeStarted.await()}
-            account.cancel();network.allowExchange.complete(Unit)
+            account.cancel()
+            val replacement=query(URI(account.begin()).rawQuery)
+            assertNotEquals(params.getValue("state"),replacement.getValue("state"))
+            network.allowExchange.complete(Unit)
             assertTrue(withTimeout(15000){finish.await()}.isFailure)
             withTimeout(15000){page.await()}
             assertFalse(account.connected())
+            assertEquals(AuthStage.WAITING.label,account.diagnostic())
         } finally { account.disconnectLocal() }
     }
 }

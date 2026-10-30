@@ -42,6 +42,10 @@ class ChatGptAccount(context: Context,private val authNetwork: AuthNetwork=OpenA
     private fun record(stage: AuthStage,error: AuthError?=null) {
         prefs.edit().putString("stage",stage.name).putString("failure",error?.name).apply()
     }
+    @Synchronized private fun updateStage(a: ChatGptPkce.Attempt,stage: AuthStage,onStage: (AuthStage)->Unit) {
+        if(pending!==a)throw CancellationException("Authorization replaced")
+        record(stage);onStage(stage)
+    }
     @Synchronized fun disconnectLocal(): JSONObject? {
         val old=store.load();accountVersion++;cancel();store.clear();prefs.edit().remove("stage").remove("failure").apply();return old
     }
@@ -88,7 +92,7 @@ class ChatGptAccount(context: Context,private val authNetwork: AuthNetwork=OpenA
         val server=listener?:throw ServiceFailure("Вход отменён.")
         val a=pending?:throw ServiceFailure("Вход отменён.")
         var client: Socket?=null;var stage=AuthStage.WAITING
-        fun progress(next: AuthStage) { stage=next;record(next);onStage(next) }
+        fun progress(next: AuthStage) { stage=next;updateStage(a,next,onStage) }
         try {
             val deadline=System.nanoTime()+180_000_000_000L
             var accepted: Pair<String,String>?=null
