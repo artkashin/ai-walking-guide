@@ -19,3 +19,9 @@ Keep discovery independent from route planning. Store completed/skipped canonica
 ## D005 — Repository creation denied (2026-10-30)
 
 Connected GitHub identity is artkashin. A private creation attempt returned an insufficient-permissions error. The user then created the public repository. Reads work and report ADMIN membership, but both git push and connector file writes return HTTP 403, and issue creation is also inaccessible to the integration. Prepare sources and issue specifications in the cloud workspace until installation permissions are corrected. Do not switch owner, credentials or permission settings automatically.
+
+Resolution: the connected app was installed only on AdaptiveBS. The user explicitly requested reconnection and installed ChatGPT Codex Connector on the personal artkashin account. Publishing, creating W01–W08 issues, and dispatching Actions now succeed. Keep subsequent work scoped to ai-walking-guide.
+
+## D006 — CI SDK setup requests supported packages (2026-10-30)
+
+The first real Actions run exposed a setup-android default requesting the removed SDK `tools` package. Specify `platform-tools` and install SDK 35/build-tools 35.0.0 explicitly. Keep the workflow failure and successful replacement recorded in PROGRESS.md.

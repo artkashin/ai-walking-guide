@@ -6,10 +6,10 @@ W01 and W02 begin immediately. Validate the foundation before W03–W08 implemen
 
 Dependencies: none.
 
-- [ ] Native Kotlin + Compose app launches on API 26+ with accurate feature status.
-- [ ] Pinned Gradle wrapper, JDK and Android SDK; no credentials needed to build.
-- [ ] GitHub Actions runs unit tests and lint, assembles debug APK successfully.
-- [ ] Downloadable workflow APK and checksum; run URL recorded in docs/PROGRESS.md.
+- [x] Native Kotlin + Compose app launches on API 26+ with accurate feature status.
+- [x] Pinned Gradle wrapper, JDK and Android SDK; no credentials needed to build.
+- [x] GitHub Actions runs unit tests and lint, assembles debug APK successfully.
+- [x] Downloadable workflow APK and checksum; run URL recorded in docs/PROGRESS.md.
 
 ## W02 — Sign in with ChatGPT feasibility
 

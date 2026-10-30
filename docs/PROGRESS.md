@@ -1,26 +1,45 @@
 # Progress — 2026-10-30
 
-## Verified and prepared
+## W01 — Android Foundation
 
-- Required constitution, architecture, implementation plan and decisions written.
-- Native Kotlin/Compose Android project, Russian status UI, pinned toolchain and APK artifact workflow prepared.
-- Offline SIWC PKCE/callback protocol PoC and tests written; no live sign-in or inference is enabled.
-- Current official SIWC OSS/local documentation reviewed. Android live compatibility and speech subscription entitlement remain unverified; see CHATGPT_FEASIBILITY.md.
-- Recommend installed offline Russian Android TTS initially, with a quality gate; see SPEECH_PROVIDER.md.
+The Kotlin/Compose Android project is published in [artkashin/ai-walking-guide](https://github.com/artkashin/ai-walking-guide).
 
-## Publication and validation
+- SDK 35, minimum API 26, JDK 17 and checksum-pinned Gradle 8.13 wrapper.
+- Russian Compose home/status screen; no location, AI or paid service enabled.
+- Five offline PKCE protocol JVM tests pass in the cloud workspace.
+- Cloud workspace wrapper build, lint and application/instrumentation APK compilation passed. Lint: zero errors, four dependency-version notices.
+- Android backup and device-transfer exclusions are explicit. No credentials or signing keys are committed.
+- **GitHub Actions build passed:** [run 41134562116](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116), source commit `7da3e13ff5df59e6b649a7e6565e181602961e99`. Five JVM tests passed (zero failures/errors/skips), lint and debug APK assembly succeeded. Downloaded CI reports confirm zero lint errors and five warnings: four dependency-version notices and an older target-SDK notice. These are follow-up maintenance items; this is a personal sideload build, not a Play Store submission.
+- **Download:** [ai-walking-guide-debug-2 ZIP](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116/artifacts/13016390027), containing APK and SHA256SUMS; artifact retention 14 days. Downloaded successfully through the GitHub connector, unpacked, checksum compared and APK signature verified.
+- APK SHA-256: `8ff3af1c1920d9e164822058196a7aad1be4e916e45dffad8567d1a9c7e2f0f6`.
+- **Emulator smoke test passed:** [run 41134533036](https://github.com/artkashin/ai-walking-guide/actions/runs/41134533036), API 35 x86_64. It installs/launches the app and verifies the Russian title and expandable authentication-status UI. Source commit `9ef98e2` has the same app code as the APK build; the later commit only changes CI SDK setup. Physical-device installation and API 26 runtime compatibility have not been tested. The debug key is generated per runner; see README for test-build upgrade limitations.
+- **W01 complete.** W02 remains open for live authentication and subscription compatibility testing.
 
-- Initial creation attempt failed for insufficient GitHub permissions.
-- User created public `artkashin/ai-walking-guide`; authenticated identity now reports ADMIN access.
-- Cloud workspace build and committed wrapper verification passed: five JVM tests, lint, debug APK and Android test APK compilation. Android emulator tests were compiled but not executed: no Android device or KVM emulator is attached. Final wrapper build after backup-rule changes also passed: 76 tasks, five passing JVM tests, lint with zero errors and four dependency-version warnings. Both application and instrumentation APKs compile. Debug APK signature verified with apksigner; installation/launch on a device has not been tested.
-- Repository writes (git and connector) and issue creation still return HTTP 403 “Resource not accessible by integration”. The connected installation list contains AdaptiveBS only, not the personal artkashin account. User has been asked to grant the integration access to the personal repository.
-- GitHub Actions has NOT run; no workflow artifact or GitHub issues exist yet. W01 remains incomplete until a successful Actions build and artifact are verified. W01–W08 issue bodies with acceptance criteria/dependencies are in planning/issues.json and can be published by scripts/create_issues.py.
-- W03–W08 implementation has not started; foundation validation comes first.
+The first Actions attempt failed because setup-android defaults included the retired `tools` package. The workflow now requests `platform-tools` explicitly.
 
-## Remaining W02 gate
+## W02 — ChatGPT feasibility
 
-Account-permission approval and a real Android browser session are required before live OAuth and a subscription text-generation test. No separately billed API, Google billing account or cloud speech service has been configured. Credentials and location history are absent from this build.
+Official SIWC OSS/local documentation was reviewed. The offline Kotlin PKCE/callback protocol PoC passes five tests. **No live Android OAuth, subscription text generation, or speech entitlement has been verified.** No consented OAuth token is available, and the live phone auth adapter remains unimplemented. An emulator UI smoke test does not test ChatGPT login. See [feasibility report](CHATGPT_FEASIBILITY.md) for exact findings, gaps, official sources and the next experiment.
 
-## Integration reconnection
+Recommend installed offline Russian Android TTS for the first speech implementation, synthesizing files for cached Media3 playback. Actual Russian voice availability and naturalness require a device quality check. Cloud speech remains subject to explicit approval; see [speech recommendation](SPEECH_PROVIDER.md).
 
-The user explicitly requested removing the current GitHub integration and establishing a new connection with access to the personal repository. Publication will resume after the new connection is confirmed.
+## Issues and dependencies
+
+All issues have acceptance criteria and dependency links:
+
+| Milestone | Issue |
+| --- | --- |
+| W01 Android Foundation | [#1](https://github.com/artkashin/ai-walking-guide/issues/1) |
+| W02 ChatGPT feasibility | [#2](https://github.com/artkashin/ai-walking-guide/issues/2) |
+| W03 Maps and GPS | [#3](https://github.com/artkashin/ai-walking-guide/issues/3) |
+| W04 Adaptive routes | [#4](https://github.com/artkashin/ai-walking-guide/issues/4) |
+| W05 POIs and session memory | [#5](https://github.com/artkashin/ai-walking-guide/issues/5) |
+| W06 Russian narration/playback | [#6](https://github.com/artkashin/ai-walking-guide/issues/6) |
+| W07 Museum identification | [#7](https://github.com/artkashin/ai-walking-guide/issues/7) |
+| W08 Replay and end-to-end tests | [#8](https://github.com/artkashin/ai-walking-guide/issues/8) |
+
+W03–W08 implementation has not started. Google service/billing choices and any additional account permissions require approval before enabling live adapters. Location history stays local by design.
+
+## GitHub access resolved
+
+The initial connection was installed only on AdaptiveBS and denied writes to the personal repository. At the user's request the connection was removed and reestablished. The user installed ChatGPT Codex Connector on artkashin; repository push, issue creation and Actions dispatch now work. No further GitHub permission change is needed for this milestone.

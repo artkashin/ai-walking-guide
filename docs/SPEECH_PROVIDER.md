@@ -8,6 +8,8 @@ This is a provisional engineering choice, not a claim that every phone has a nat
 
 OpenAI text-to-speech documents Russian support, but voices are described as optimized for English. It is a candidate for a quality trial after separate billing approval. The reviewed SIWC flow documents eligible Responses requests and does not confirm speech endpoint access; do not reuse OAuth tokens against speech endpoints merely to probe billing. No paid provider has been enabled.
 
+The current OpenAI speech guide also announces shutdown of its legacy TTS models on 2027-01-06 and recommends a Realtime workflow for migration. Any future cloud trial must recheck the supported model, endpoint, entitlement and pricing rather than build against the legacy examples.
+
 Sources accessed 2026-10-30:
 
 - [Android TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)

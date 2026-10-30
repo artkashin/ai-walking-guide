@@ -2,13 +2,13 @@
 
 Personal Android tour guide, Kotlin + Jetpack Compose. Russian narration, advisory walking routes, independent nearby discovery, museum photo context, and local session memory are the intended product.
 
-**Current state:** W01 source and CI prepared; W02 official documentation reviewed with an offline PKCE protocol PoC. No map, GPS, AI requests, narration or live sign-in is enabled yet. See [progress](docs/PROGRESS.md) for verified outcomes and blockers.
+**Current state:** W01 Android foundation is complete with a [successful GitHub Actions build](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116) and a [downloadable debug APK ZIP](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116/artifacts/13016390027). W02 official documentation is reviewed with five passing offline PKCE tests. No map, GPS, AI requests, narration or live sign-in is enabled yet. See [progress](docs/PROGRESS.md) for verified outcomes and remaining tests.
 
 ## Build entirely in the cloud
 
-Push to `main` or open a pull request: **Android debug APK** runs unit tests, lint and `assembleDebug`. Under Actions → successful run → Artifacts, download `ai-walking-guide-debug-<run>`, unzip it, and install `app-debug.apk` on Android 8.0+. Allow installation from your chosen file manager when Android asks. Debug builds are for personal testing, not Play Store distribution. Artifacts expire after 14 days; rerun the workflow to regenerate.
+Push to `main` or open a pull request: **Android debug APK** runs unit tests, lint and `assembleDebug`. Under Actions → successful run → Artifacts, download `ai-walking-guide-debug-<run>`, unzip it, and install `app-debug.apk` on Android 8.0+. Allow installation from your chosen file manager when Android asks. Debug builds are for personal testing, not Play Store distribution. Artifacts expire after 14 days; rerun the workflow to regenerate. Each cloud runner generates a debug signing key, so an APK from another run may not install over an earlier debug build. If Android reports a signature conflict, uninstalling the earlier test build permits installation but removes its app data.
 
-The manual **Android emulator smoke test** workflow verifies launch and the authentication status UI. No secrets or paid AI services are needed to build. GitHub Actions usage remains subject to the account's quota; do not enable paid overages without approval.
+The manual **Android emulator smoke test** workflow verifies launch and the authentication status UI; its [first API 35 run passed](https://github.com/artkashin/ai-walking-guide/actions/runs/41134533036). No secrets or paid AI services are needed to build. GitHub Actions usage remains subject to the account's quota; do not enable paid overages without approval.
 
 Optional cloud-shell command, with JDK 17 and Android SDK available:
 
