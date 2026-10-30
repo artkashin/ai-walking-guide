@@ -24,6 +24,14 @@ class ChatGptPkceTest {
         val a = attempt()
         assertEquals("code" to "oaiapp_test", ChatGptPkce.validateCallback(a, URI("${a.redirectUri}?state=${a.state}&code=code&client_id=oaiapp_test")))
     }
+    @Test fun rejectsNonV4HostIdentityAndPrivilegedPort() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ChatGptPkce.newRegistration("urn:uuid:00000000-0000-0000-0000-000000000000", 1455)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ChatGptPkce.newRegistration("urn:uuid:ec0aeb5d-ec6b-4420-a63d-515ed79ab52d", 80)
+        }
+    }
     @Test fun rejectsInjectionDenialAndEndpointChanges() {
         val a = attempt()
         val valid = "state=${a.state}&code=code&client_id=oaiapp_test"

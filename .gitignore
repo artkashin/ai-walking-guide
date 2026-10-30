@@ -8,3 +8,5 @@ local.properties
 *.iml
 credentials*
 .env*
+__pycache__/
+*.pyc

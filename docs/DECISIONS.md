@@ -18,4 +18,4 @@ Keep discovery independent from route planning. Store completed/skipped canonica
 
 ## D005 — Repository creation denied (2026-10-30)
 
-Connected GitHub identity is artkashin. Repository lookup returned not found; a private creation attempt returned an insufficient-permissions error. Prepare sources and issue specifications locally in the cloud workspace; do not create a repository under a different owner or change account permissions. Resume publishing when the user creates the repository or authorizes suitable access.
+Connected GitHub identity is artkashin. A private creation attempt returned an insufficient-permissions error. The user then created the public repository. Reads work and report ADMIN membership, but both git push and connector file writes return HTTP 403, and issue creation is also inaccessible to the integration. Prepare sources and issue specifications in the cloud workspace until installation permissions are corrected. Do not switch owner, credentials or permission settings automatically.

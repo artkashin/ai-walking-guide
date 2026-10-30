@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.artkashin.aiwalkingguide"
     compileSdk = 35
+    buildToolsVersion = "35.0.0"
     defaultConfig {
         applicationId = "com.artkashin.aiwalkingguide"
         minSdk = 26
@@ -21,7 +22,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 dependencies {

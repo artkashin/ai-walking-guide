@@ -26,7 +26,9 @@ def main():
         body += "\n".join(f"- [ ] {criterion}" for criterion in spec["acceptance"])
         body += "\n\nAll work must comply with docs/CONSTITUTION.md. No new paid services or account permission grants without explicit approval.\n"
         # stdin preserves actual newlines, with no shell interpolation.
-        result = subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", spec["title"], "--body-file", "-"], input=body, text=True, check=True, capture_output=True)
+        result = subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", spec["title"], "--body-file", "-"], input=body, text=True, capture_output=True)
+        if result.returncode:
+            raise SystemExit(f"Cannot create {key}: {result.stderr.strip()}")
         urls[key] = result.stdout.strip()
         print(f"{key}: {urls[key]}")
 

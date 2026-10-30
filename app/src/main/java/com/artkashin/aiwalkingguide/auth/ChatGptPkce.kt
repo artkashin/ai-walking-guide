@@ -25,7 +25,8 @@ object ChatGptPkce {
 
     fun newRegistration(hostId: String, port: Int): Attempt {
         require(hostId.startsWith("urn:uuid:"))
-        java.util.UUID.fromString(hostId.removePrefix("urn:uuid:"))
+        val hostUuid = java.util.UUID.fromString(hostId.removePrefix("urn:uuid:"))
+        require(hostUuid.version() == 4 && hostUuid.variant() == 2)
         require(port in 1024..65535)
         val redirect = "http://127.0.0.1:$port/auth/callback"
         val state = randomValue()
