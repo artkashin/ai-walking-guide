@@ -4,7 +4,7 @@
 
 ## Скачать и запустить
 
-**[APK 0.2.0 — прямая загрузка](https://github.com/artkashin/ai-walking-guide/releases/download/v0.2.0/ai-walking-guide-0.2.0.apk)** · [Все выпуски](https://github.com/artkashin/ai-walking-guide/releases) · [Инструкция на русском](docs/USER_GUIDE_RU.md)
+**[APK 0.2.1 — прямая загрузка](https://github.com/artkashin/ai-walking-guide/releases/download/v0.2.1/ai-walking-guide-0.2.1.apk)** · [Все выпуски](https://github.com/artkashin/ai-walking-guide/releases) · [Инструкция на русском](docs/USER_GUIDE_RU.md)
 
 Android 8.0 и новее. Это личная тестовая debug-сборка. GitHub Actions собирает APK и проверяет код; реальный вход вашего аккаунта ChatGPT, качество голоса и прогулка проверяются на телефоне. При несовпадении debug-подписи предыдущую тестовую сборку может потребоваться удалить — это удалит её локальные данные.
 

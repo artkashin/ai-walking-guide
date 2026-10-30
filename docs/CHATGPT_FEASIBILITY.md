@@ -54,3 +54,15 @@ Official pages accessed 2026-10-30; availability and preview behavior may change
 ## Included-plan-only control
 
 No reviewed OAuth request flag enforces a no-extra-credits policy. Before requests the app requires the user to disable additional credits/automatic purchases in ChatGPT settings and confirm that they did so. This is a user-controlled gate, not server-side billing verification. If that control is unavailable, keep AI requests disabled. The app neither purchases credits nor falls back to an API key.
+
+## Phone feedback and 0.2.1 correction
+
+The user tested 0.2.0 and observed the local browser message “Вход получен”, followed by an unconnected app. That establishes that the browser reached the Android loopback callback on that phone. It does not establish successful token exchange, OIDC validation, protected persistence or subscription inference: 0.2.0 incorrectly emitted that message before those steps.
+
+Two defects were established by code inspection: premature browser confirmation, and discarding a verified identity if chatgpt.tokens.use.direct was not granted. The specific post-callback failure on the user's device is not yet known because the old diagnostic hid the stage.
+
+0.2.1 delays confirmation until verification and storage, distinguishes identity from plan permission, provides safe per-stage diagnostics, requests explicit plan consent only when selected by the user, and rereads the stored session on Activity resume. The added aiwalkingguide://auth-complete link only reopens the UI; it is not an OAuth callback, carries no credential and cannot set authentication state. The registered OAuth callback remains HTTP 127.0.0.1 with PKCE/state/nonce and validated JWT signatures. A no-scope identity cannot call inference. Cancellation/replacement is fenced before storage and old cleanup cannot cancel a new attempt.
+
+Regression tests exercise the real Android callback listener, signed fixture tokens, protected storage and UI state reconciliation through an injected issuer transport. They do not access a real account or prove the user's live subscription entitlement. If the phone still cannot finish, only the displayed stage and short diagnostic code should be shared; never callback URLs, codes, tokens or cookies.
+
+Official source reaffirming identity-only sign-in retention and explicit consent recovery: [Errors and recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).

@@ -37,3 +37,7 @@ Use Android SQLite directly for atomic session reservations/alias migration with
 ## D009 — Client cannot enforce subscription credit settings (2026-10-30)
 
 The documented OAuth inference contract has no reviewed client flag guaranteeing included-plan-only billing if the user has enabled extra credits/automatic purchases on the server. The app has no purchase/key fallback, requires disabling these server settings and a per-process confirmation before AI requests, and explains that it cannot verify this setting. If it cannot be disabled, keep AI requests disabled. Live account entitlement remains a phone acceptance test.
+
+## D010 — Login completion and plan permission are separate (0.2.1)
+
+User feedback confirms callback reachability on their phone, not post-callback success. Browser confirmation must wait for validated secure persistence. Preserve verified identity when plan permission is missing, prohibit inference in that state and request consent only through the official flow on explicit selection. Never relax signature, nonce, state or issuer checks to make the UI appear connected. Reconcile UI state on resume; expose only safe stage/error codes for the remaining live-device investigation. The custom return link is UI-only, not an alternative OAuth redirect.

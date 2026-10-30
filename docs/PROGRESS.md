@@ -1,6 +1,19 @@
-# Progress — 0.2.0, 2026-10-30
+# Progress — 0.2.1, 2026-10-30
 
-## Delivery
+## 0.2.1 authentication follow-up
+
+The user saw the 0.2.0 browser callback confirmation but the app stayed unconnected. Code inspection established premature browser success and loss of a valid identity when plan scope was absent; the exact original post-callback device failure was not observable with the old generic diagnostic.
+
+- Source: `06e934a7fbd5dcf4378eb87043a6b1d0bb26edb8`.
+- [Build 41145932167](https://github.com/artkashin/ai-walking-guide/actions/runs/41145932167) passed: 20 JVM tests, zero failures/errors; lint zero errors and 22 maintenance warnings.
+- [Emulators 41145930388](https://github.com/artkashin/ai-walking-guide/actions/runs/41145930388) passed: 11 tests on each of API 26/35. Four new full-flow regressions cover no premature success/noise connections, identity-only persistence with inference blocked, rejected nonce with safe diagnostics, and cancel/replacement fencing. The successful-flow test also verifies the controller reads the stored session.
+- [Publisher 41146443754](https://github.com/artkashin/ai-walking-guide/actions/runs/41146443754) passed after checking both source runs refer to the same main-branch commit. [Direct APK](https://github.com/artkashin/ai-walking-guide/releases/download/v0.2.1/ai-walking-guide-0.2.1.apk).
+- Downloaded release APK; checksum and signature verified. SHA-256: `32a8eb2821983fa4d34ef9490a2f76f00ad510aede27d386b31074a7801e3324`.
+- Browser completion now follows validated protected persistence; profile/plan are separate states. Resume reconciles UI state; explicit plan consent recovery uses the official flow. Signature/state/nonce checks were not weakened.
+- Actual successful sign-in/inference on the user's phone still needs a retry. If it fails, only the short safe stage/error code is needed. Test flows use signed fixtures, not the user's account.
+- Published 0.2.1 and 0.2.0 debug signing certificates differ. Android cannot update across them; uninstalling 0.2.0 removes its local history. This limitation is disclosed in release/user instructions; no signing key was added to the repository or account secrets.
+
+## 0.2.0 baseline delivery
 
 Source: `607370aac93195d53aaf6c994cbe8d072fde8352`. App versionCode 2/versionName 0.2.0; Android 8.0+.
 

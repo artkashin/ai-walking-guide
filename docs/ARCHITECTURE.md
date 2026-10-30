@@ -1,4 +1,4 @@
-# Architecture — 0.2.0
+# Architecture — 0.2.1
 
 ## Runtime
 
@@ -37,3 +37,7 @@ Android Photo Picker or delegated camera + narrow FileProvider grant. Upload req
 ## Verification and limitations
 
 JVM tests cover PKCE, returning client substitution, signed-token claims, SSE completion/failure, selection/silence, detours, replay and speech chunking. Android instrumentation tests exercise SQLite restart/alias/atomic reservations, encrypted credential storage, navigation through UI and offline GPS replay. CI requires no live accounts, real photographs, GPS traces or paid credentials. Real walking, background battery behavior, installed Russian voice quality and real OAuth/vision entitlement remain phone acceptance tests.
+
+## Authentication completion correction (0.2.1)
+
+The listener tolerates unrelated/empty browser connections within a bounded deadline and reads bounded headers before replying. Browser success follows verified credential publication; a fixed return link reopens the Activity without transporting codes or being trusted for identity. Account identity and plan permission are separate states. A valid identity is retained without inference scope and has a user-initiated consent recovery action. Activity resume synchronizes the UI from protected storage. Diagnostics persist only enumerated stage/error labels and allowlisted OAuth server code names, not raw responses or personal data. Publish/cancel/refresh fences prevent stale attempts from writing credentials or canceling replacement attempts.
