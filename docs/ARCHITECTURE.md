@@ -1,33 +1,39 @@
-# Architecture
+# Architecture — 0.2.0
 
-## Implemented foundation
+## Runtime
 
-One Android `app` module, Kotlin 2.1.20, AGP 8.9.2, Gradle 8.13, Java 17 bytecode, SDK 35, min SDK 26. Compose Material 3 renders a Russian status screen with an expandable authentication explanation. No permission is declared and no network service is active.
+Native Kotlin/Compose, SDK 35/minSdk 26, JDK 17, Gradle 8.13. `GuideApp` owns a single `TourController` with a Main-thread coroutine scope and observable state. `GuideService` keeps an explicitly started tour alive with a location/media foreground notification while Google Maps is open. It is not boot-started or sticky. Stopping a tour cancels discovery, pending speech and museum work; no background location permission is requested.
 
-`auth/ChatGptPkce` is an offline protocol experiment: fresh verifier/state/nonce, S256 challenge, official dynamic-registration URL, strict callback validation. It deliberately performs no token exchange or sign-in. A production auth adapter needs validated OIDC signatures, one-shot attempts and lifecycle handling, secure credential storage/renewal, scope checks, consent and real Android tests before enablement.
+`PhoneLocation` accepts fresh GPS/network fixes only. Approximate or inaccurate fixes can be displayed, but automatic narration requires <=60 m reported accuracy and a fix younger than 30 seconds. Search is throttled by movement/time. No position track is stored.
 
-## Intended runtime
+## Navigation and discovery remain independent
 
-Compose UI → session coordinator → independent navigation and guide pipelines:
+The user approved external Google Maps URLs instead of a billed embedded SDK. Selected real POIs are advisory goals. Their nearest-next order is recomputed from actual position; close goals are removed when GPS accuracy permits. Google Maps receives a walking navigation URL with destination and no pinned origin. Google Maps calculates pedestrian paths and adapts them itself. Internal goal ordering does not remotely control an already-open Maps session. Distances in the guide are straight-line distances, explicitly labeled.
 
-- **Navigation:** foreground GPS adapter → accuracy/speed filtering → advisory route state → Google walking directions adapter. A deviation invalidates old route requests and replans from current position. Research Google Maps SDK vs Routes/Navigation SDK walking support before choosing; no assumption that Navigation SDK offers walking turn-by-turn. Map, routes and POI billing are separate approval gates.
-- **Guide:** actual-position/context snapshots → proximity POI search → canonical identity resolution → session eligibility filter → relevance/confidence decision → Russian grounded text → speech cache → playback. Empty results are a normal idle state. Navigation cannot gate this search.
-- **Museum:** explicit photo capture/picker → local EXIF stripping/downsampling → contextual identification → confidence/candidate confirmation → shared identity, session memory and narration pipeline. Image upload requires informed consent.
+Discovery queries Wikipedia independently of goals. Russian geosearch falls back to English, respects the documented 1200-character extract limit, and returns coordinates, provenance, page identity and Wikidata identity when available. Results are conservative and provider coverage is incomplete. Nearby real POIs are cached locally (maximum 2000). Empty/unusable results mean silence, not invented facts. No persistent zone entity exists.
 
-Use interfaces for `LocationSource`, `WalkingRouteProvider`, `PoiProvider`, `NarrationGenerator`, `SpeechSynthesizer`, and `PlaybackController`. Use fake providers and a deterministic clock for CI. Implement adapters only when their milestones begin.
+## Local identity and narration memory
 
-## Data and concurrency
+`TourStore` uses Android SQLite transactions rather than Room/KSP: session, memory, alias, cached POI and goal tables. Reservations are unique on session + canonical POI and synchronized. Wikidata IDs unify language/provider aliases when available; names/coordinates alone are not aggressively merged. Alias resolution carries completed/skipped states to the canonical identity.
 
-Room will hold local `TourSession`, `Poi`, `PoiAlias`, `SessionPoiState`, and narration cache metadata. There is no zone entity. Provider IDs take priority; coordinate/name/category matching is conservative, records provenance and supports aliases rather than merging unrelated buildings/artworks.
+Reserved -> playing <-> paused -> completed; skip is terminal. Terminal states cannot be reset by playback callbacks. On process recreation, interrupted reservations become skipped and never auto-restart. A new session is an explicit user action. Generation counters and coroutine cancellation discard late results after skip/stop; search is separate from route membership.
 
-Session narration states: eligible → reserved → generating → playing ↔ paused → completed; skipping from any active stage marks skipped. Completed/skipped are terminal for automatic playback. Transactional reservation and unique `(sessionId, canonicalPoiId)` prevent concurrent duplicate narration. Persist transition before advancing playback, handle process death, and apply alias merges transactionally. A late generation result after skip/end-session must be discarded. Explicit manual replay can be a separate future feature.
+## AI and credentials
 
-Route request generations discard stale results. POI search requests are throttled by movement, accuracy and context; these ephemeral query radii are not persisted interest zones. Poor GPS quality pauses automatic decisions rather than inventing movement.
+`ChatGptPkce` and `ChatGptAccount` implement the documented official OSS dynamic-registration flow: system browser, loopback-only callback, fresh state/nonce/S256 verifier, exact callback/client pinning and one-shot timeout. `IdTokenVerifier` verifies RS256/ES256 JWKS signatures plus issuer, audience, nonce, expiry, issue/not-before times and authorized-party binding for multi-audience tokens. Returning sign-in uses the saved client when available. Token refresh is serialized and sign-out invalidates refresh writes. Credentials are encrypted with an Android Keystore AES-GCM key and atomically stored under noBackupFilesDir. Sign-out clears local credentials immediately and attempts documented server revocation; if it cannot confirm revocation, the UI points the user to ChatGPT settings.
 
-Speech cache key includes canonical POI, text hash, locale, voice, provider and synthesis version. Store files in app-private storage with size/age limits; remove session/location data on user request. Media3 will handle file playback, interruption/audio focus, pause/resume and progress. A synthesized file gives reliable seeking compared with restarting Android TTS directly.
+Inference lists account-eligible models and uses only OAuth bearer tokens on the official Responses endpoint with store:false, stream:true and array input. No API key, unofficial backend, session-cookie extraction, credit purchase or billing fallback exists. Only response.completed permits narration. Incomplete/failed streams remain failed even after partial text. HTTP errors and usage exhaustion show bounded, non-sensitive messages. No response body or token is logged.
 
-## Privacy and deployment
+The user approved implementing official subscription sign-in. Actual account consent still happens in the phone browser. Before AI requests, the UI requires the user to disable additional credit usage/automatic purchases in ChatGPT and confirm this. The client has no documented server-side switch to verify or enforce that setting; if it cannot be disabled, leave AI requests disabled. No claim of verified subscription entitlement is made without a real successful device request.
 
-Builds contain no AI credentials. OAuth browser and loopback callback run on the phone; tokens must never pass through GitHub Actions. Use Keystore AES-GCM and app-private no-backup storage. Never log codes, tokens, precise traces or museum images. Sign out clears credentials and cancels pending work; ending a session cancels automatic requests. Only approved requests send minimal POI context, not complete location history. No analytics by default.
+## Russian speech
 
-Debug CI uses ephemeral debug signing; no release identity or signing key is created. Production signing, cloud billing, API key restrictions and permissions are future explicit gates.
+`RussianSpeaker` requires an installed Russian voice reporting no network requirement. Text is chunked below the engine's input limit and synthesized to files. Cache keys include engine/version, voice, text and fixed synthesis settings. Media3 handles pause/resume, playlist progression, audio focus and unplugged-headphone pause. Skip cancels synthesis and playback; only completed synthesis files are published. Audio cache is capped at 100 MiB; generated text cache at 200 entries. Naturalness is device-dependent and must be evaluated on the user's phone.
+
+## Museum
+
+Android Photo Picker or delegated camera + narrow FileProvider grant. Upload requires separate confirmation. Images are decoded/downsampled and re-encoded as JPEG without EXIF before sending. Only image + explicit museum text + nearby place names are sent. Raw capture files are removed after processing/cancellation and on next process startup; gallery originals are not deleted. Model attribution is a hypothesis, with confidence and a mandatory user confirmation before narration. Low-confidence results cannot start narration. Normalized museum/title/artist keys prevent repeating the same confirmed identification; different uncertain spellings may require user judgment. Museum identification is not authoritative art authentication.
+
+## Verification and limitations
+
+JVM tests cover PKCE, returning client substitution, signed-token claims, SSE completion/failure, selection/silence, detours, replay and speech chunking. Android instrumentation tests exercise SQLite restart/alias/atomic reservations, encrypted credential storage, navigation through UI and offline GPS replay. CI requires no live accounts, real photographs, GPS traces or paid credentials. Real walking, background battery behavior, installed Russian voice quality and real OAuth/vision entitlement remain phone acceptance tests.

@@ -7,7 +7,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 
-/** Offline protocol PoC only. Does not launch sign-in, exchange codes, or retain tokens. */
+/** Pure protocol helpers shared by the live local-phone OAuth adapter and JVM tests. */
 object ChatGptPkce {
     private fun randomValue(): String = Base64.getUrlEncoder().withoutPadding()
         .encodeToString(ByteArray(32).also { SecureRandom().nextBytes(it) })
@@ -20,10 +20,11 @@ object ChatGptPkce {
         val state: String,
         val nonce: String,
         val verifier: String,
-        val authorizationUri: String
+        val authorizationUri: String,
+        val issuedClient: String? = null
     )
 
-    fun newRegistration(hostId: String, port: Int): Attempt {
+    fun newRegistration(hostId: String, port: Int, issuedClient: String? = null, idTokenHint: String? = null): Attempt {
         require(hostId.startsWith("urn:uuid:"))
         val hostUuid = java.util.UUID.fromString(hostId.removePrefix("urn:uuid:"))
         require(hostUuid.version() == 4 && hostUuid.variant() == 2)
@@ -33,7 +34,7 @@ object ChatGptPkce {
         val nonce = randomValue()
         val verifier = randomValue()
         val params = linkedMapOf(
-            "client_id" to "dynamic_agent_client",
+            "client_id" to (issuedClient ?: "dynamic_agent_client"),
             "agent_name_hint" to "AI Walking Guide",
             "ext_agent_host_id" to hostId,
             "response_type" to "code",
@@ -43,10 +44,15 @@ object ChatGptPkce {
             "state" to state, "nonce" to nonce,
             "code_challenge_method" to "S256", "code_challenge" to challenge(verifier)
         )
+        if (issuedClient != null) {
+            require(issuedClient.startsWith("oaiapp_"))
+            params.remove("agent_name_hint")
+            if (!idTokenHint.isNullOrBlank()) params["id_token_hint"] = idTokenHint
+        }
         val query = params.entries.joinToString("&") { (k, v) ->
             "$k=${URLEncoder.encode(v, "UTF-8")}"
         }
-        return Attempt(redirect, state, nonce, verifier, "https://auth.openai.com/api/accounts/authorize?$query")
+        return Attempt(redirect, state, nonce, verifier, "https://auth.openai.com/api/accounts/authorize?$query", issuedClient)
     }
 
     /** State alone is insufficient: pin the loopback endpoint and reject malformed callbacks. */
@@ -65,7 +71,8 @@ object ChatGptPkce {
         require(MessageDigest.isEqual(attempt.state.toByteArray(), params["state"].orEmpty().toByteArray()))
         require("error" !in params)
         val code = requireNotNull(params["code"]).also { require(it.isNotBlank()) }
-        val client = requireNotNull(params["client_id"]).also { require(it.startsWith("oaiapp_") && it.length > 7) }
+        val client = requireNotNull(params["client_id"] ?: attempt.issuedClient).also { require(it.startsWith("oaiapp_") && it.length > 7) }
+        if (attempt.issuedClient != null) require(client == attempt.issuedClient)
         return code to client
     }
 }

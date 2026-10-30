@@ -2,7 +2,7 @@
 
 ## Result
 
-**Promising official protocol path; Android end-to-end compatibility and this account's subscription entitlement remain UNVERIFIED.** This is a documentation investigation plus an offline Kotlin protocol PoC, not a successful sign-in test. No account permissions have been granted and no inference request has been made.
+**Promising official protocol path; Android end-to-end compatibility and this account's subscription entitlement remain UNVERIFIED.** The 0.2.0 build now includes a local-phone OAuth adapter, encrypted token store, ID-token verification, refresh/revocation, model listing and streamed text/image requests. The user approved preparing this integration, but actual account consent and a successful subscription request still require the phone browser; neither has been performed in CI.
 
 The official OSS guide now documents dynamic registration for open-source/local apps. It uses a public OAuth client with no secret, Authorization Code + S256 PKCE, system browser, stable per-install host ID, and an HTTP `127.0.0.1` callback. These primitives can be implemented on Android, but the sources reviewed do not explicitly certify an Android SDK, package-signature redirect, custom scheme or Android App Link alternative. A real-device test is needed to check browser-to-loopback reachability, app lifecycle and registration admission. The commercial website/plugin trial restrictions should not be conflated with this separate OSS flow.
 
@@ -17,15 +17,15 @@ The official OSS guide now documents dynamic registration for open-source/local 
 
 ## Proof of concept and test inventory
 
-Implemented `ChatGptPkce` builds the documented initial URL without launching it. Tests cover the RFC 7636 challenge vector, randomness, official hostname, accepted issued-client callback, and rejection of state mismatch, repeated query keys, access denial, callback host/port/path changes and placeholder client IDs.
+Implemented: PKCE and client/callback pinning, loopback listener, browser launch, token exchange, JWKS verification of signed identity claims, Keystore-encrypted no-backup token store, serialized refresh, server revocation attempt on sign-out, model catalog and Responses SSE adapter. Tests use generated fixture keys and synthetic events, never a real account.
 
-Not implemented: loopback listener, browser launch, token exchange, OIDC verifier, secure token store/refresh, HTTP inference/SSE adapter. This is intentionally a protocol-only PoC until the account-permission gate and device-testing path are resolved. Offline tests do not verify OpenAI admission or Android networking.
+A completed real device sign-in and generation are still required to establish Android/browser compatibility and account admission. CI tests do not impersonate a subscriber and do not substitute for that verification. The UI includes an explicit subscription connection test.
 
 | Check | Outcome |
 | --- | --- |
 | Official OAuth + PKCE flow documented | Yes, OSS/local flow |
 | Android-specific official support statement found | No, in sources reviewed |
-| Kotlin offline protocol experiment | Implemented; execution status in PROGRESS.md |
+| Kotlin protocol, OIDC and inference adapters | Implemented with synthetic tests; execution status in PROGRESS.md |
 | Real Android browser/loopback sign-in | Not run; no device/browser session available |
 | Subscription-authorized text request | Not run; no consented OAuth token |
 | Russian speech subscription entitlement | Not established by documentation |
@@ -33,7 +33,7 @@ Not implemented: loopback listener, browser launch, token exchange, OIDC verifie
 
 ## Next compatibility experiment
 
-After explicit user approval for identity and plan-use permissions, implement the local-phone adapter with Keystore-backed no-backup storage. Start a one-shot listener on 127.0.0.1 before launching a Custom Tab; bind only loopback, enforce timeout/size limits and lifecycle cancellation. Use issuer discovery/JWKS over HTTPS; do not weaken global Android cleartext policy. Verify how the browser handles loopback HTTP on the chosen Android versions.
+The user approved preparing identity/plan-use sign-in and the local-phone adapter is implemented with Keystore-backed no-backup storage. Complete the following on-phone acceptance checks before claiming live compatibility. Start a one-shot listener on 127.0.0.1 before launching a Custom Tab; bind only loopback, enforce timeout/size limits and lifecycle cancellation. Use issuer discovery/JWKS over HTTPS; do not weaken global Android cleartext policy. Verify how the browser handles loopback HTTP on the chosen Android versions.
 
 On a real Android device test API 26 and a current API, Chrome/default-browser return, rotation, background/process death, user denial, changed state, expired code, revoked/rotated tokens and unavailable subscription. Do not keep state/verifier in saved-instance bundles. After consent, select an available model and submit a minimal Russian prompt without location. Record only status/event names and whether `response.completed` arrived. Keep tokens and response headers out of reports. If Android callbacks are rejected, record the exact redacted error and request official guidance rather than substituting an undocumented redirect.
 
@@ -50,3 +50,7 @@ Official pages accessed 2026-10-30; availability and preview behavior may change
 5. [Using your plan in other apps](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)
 6. [SIWC terms](https://openai.com/policies/sign-in-with-chatgpt-terms/)
 7. [Website integration and partner availability](https://developers.openai.com/siwc/website)
+
+## Included-plan-only control
+
+No reviewed OAuth request flag enforces a no-extra-credits policy. Before requests the app requires the user to disable additional credits/automatic purchases in ChatGPT settings and confirm that they did so. This is a user-controlled gate, not server-side billing verification. If that control is unavailable, keep AI requests disabled. The app neither purchases credits nor falls back to an API key.

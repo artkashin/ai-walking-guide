@@ -25,3 +25,15 @@ Resolution: the connected app was installed only on AdaptiveBS. The user explici
 ## D006 — CI SDK setup requests supported packages (2026-10-30)
 
 The first real Actions run exposed a setup-android default requesting the removed SDK `tools` package. Specify `platform-tools` and install SDK 35/build-tools 35.0.0 explicitly. Keep the workflow failure and successful replacement recorded in PROGRESS.md.
+
+## D007 — Approved implementation scope for 0.2.0 (2026-10-30)
+
+The user explicitly selected external Google Maps without new billing and approved preparing official ChatGPT sign-in with included subscription usage only. Implement Maps URLs, not an embedded Google Cloud SDK. No additional service account, API key, paid API, credits purchase or billing upgrade is authorized. Wikipedia provides real nearby POIs with provenance after in-app location disclosure/consent.
+
+## D008 — SQLite and foreground tour lifecycle (2026-10-30)
+
+Use Android SQLite directly for atomic session reservations/alias migration without adding Room/KSP. An explicitly started location/media foreground service maintains the tour while Maps is open; no boot-started service or background-location permission. New sessions and data deletion are explicit actions. Audio uses cached offline Russian TTS files with Media3.
+
+## D009 — Client cannot enforce subscription credit settings (2026-10-30)
+
+The documented OAuth inference contract has no reviewed client flag guaranteeing included-plan-only billing if the user has enabled extra credits/automatic purchases on the server. The app has no purchase/key fallback, requires disabling these server settings and a per-process confirmation before AI requests, and explains that it cannot verify this setting. If it cannot be disabled, keep AI requests disabled. Live account entitlement remains a phone acceptance test.

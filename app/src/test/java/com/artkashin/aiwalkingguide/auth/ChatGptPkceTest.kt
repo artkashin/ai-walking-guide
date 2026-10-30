@@ -24,6 +24,12 @@ class ChatGptPkceTest {
         val a = attempt()
         assertEquals("code" to "oaiapp_test", ChatGptPkce.validateCallback(a, URI("${a.redirectUri}?state=${a.state}&code=code&client_id=oaiapp_test")))
     }
+    @Test fun returningRegistrationPinsClientAndAllowsOmittedCallbackClient() {
+        val a=ChatGptPkce.newRegistration("urn:uuid:ec0aeb5d-ec6b-4420-a63d-515ed79ab52d",1455,"oaiapp_saved")
+        assertFalse(a.authorizationUri.contains("agent_name_hint"))
+        assertEquals("code" to "oaiapp_saved",ChatGptPkce.validateCallback(a,URI("${a.redirectUri}?state=${a.state}&code=code")))
+        assertThrows(IllegalArgumentException::class.java) { ChatGptPkce.validateCallback(a,URI("${a.redirectUri}?state=${a.state}&code=code&client_id=oaiapp_different")) }
+    }
     @Test fun rejectsNonV4HostIdentityAndPrivilegedPort() {
         assertThrows(IllegalArgumentException::class.java) {
             ChatGptPkce.newRegistration("urn:uuid:00000000-0000-0000-0000-000000000000", 1455)
