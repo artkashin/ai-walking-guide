@@ -47,7 +47,7 @@
       "Deviation replans from actual position to remaining goals without forced return.",
       "Accuracy filtering, movement throttling and stale-request cancellation handle GPS jitter.",
       "Navigation and POI guide stay independent; empty route does not disable nearby discovery.",
-      "Replay tests demonstrate multiple detours, stale responses and route service failures."
+      "Replay/unit tests demonstrate detours, remaining-goal order and walking Maps delegation without paid credentials. External Maps owns path-service failures and rerouting."
     ]
   },
   {

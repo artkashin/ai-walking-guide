@@ -29,35 +29,35 @@ Dependencies: W01.
 
 - [x] Use official Google Maps URLs for walking navigation from current position, as explicitly approved by the user; no embedded billed SDK or API key.
 - [x] Research and document the external-Maps scope and its limits; no new billing or account provisioning.
-- [ ] Implement foreground GPS with explicit location/search consent, permission-denied/approximate/unavailable states and stale-fix rejection.
-- [ ] Keep POI discovery independent of the goal list, and never persist precise traces remotely; CI uses synthetic GPS without paid secrets.
+- [x] Implement foreground GPS with explicit location/search consent, permission-denied/approximate/unavailable states and stale-fix rejection.
+- [x] Keep POI discovery independent of the goal list, and never persist precise traces remotely; CI uses synthetic GPS without paid secrets.
 
 ## W04 — Dynamic route replanning
 
 Dependencies: W03.
 
-- [ ] Deviation replans from actual position to remaining goals without forced return.
-- [ ] Accuracy filtering, movement throttling and stale-request cancellation handle GPS jitter.
-- [ ] Navigation and POI guide stay independent; empty route does not disable nearby discovery.
-- [ ] Replay tests demonstrate multiple detours, stale responses and route service failures.
+- [x] Deviation replans from actual position to remaining goals without forced return.
+- [x] Accuracy filtering, movement throttling and stale-request cancellation handle GPS jitter.
+- [x] Navigation and POI guide stay independent; empty route does not disable nearby discovery.
+- [x] Replay/unit tests demonstrate detours, remaining-goal order and walking Maps delegation without paid credentials. External Maps owns path-service failures and rerouting.
 
 ## W05 — POI discovery, identity and session memory
 
 Dependencies: W03.
 
-- [ ] Query real POIs around actual position, including off-route candidates; no persistent zones.
-- [ ] Canonical identity/alias matching handles provider duplicates conservatively.
-- [ ] Persist completed/skipped session POIs locally; no automatic repeats across process restart or alias merges.
-- [ ] Atomic reservation prevents concurrent repeats; late results after skip/end are discarded.
-- [ ] Empty/uninteresting/uncertain results produce silence; tests cover these invariants.
+- [x] Query real POIs around actual position, including off-route candidates; no persistent zones.
+- [x] Canonical identity/alias matching handles provider duplicates conservatively.
+- [x] Persist completed/skipped session POIs locally; no automatic repeats across process restart or alias merges.
+- [x] Atomic reservation prevents concurrent repeats; late results after skip/end are discarded.
+- [x] Empty/uninteresting/uncertain results produce silence; tests cover these invariants.
 
 ## W06 — Russian narration and audio playback
 
 Dependencies: W02, W05.
 
-- [ ] Use an explicitly authorized text generation path; include grounded POI provenance and uncertainty.
+- [x] Use an explicitly authorized text generation path; include grounded POI provenance and uncertainty.
 - [ ] Evaluate installed offline Russian Android TTS voice; cloud speech only after separate approval.
-- [ ] Flexible narration duration; synthesized file cache and Media3 pause/resume/skip work.
+- [x] Flexible narration duration; synthesized file cache and Media3 pause/resume/skip work.
 - [ ] Handle long narration, audio focus, interruptions, cancellation and cache invalidation.
 - [ ] Device evaluation confirms acceptable Russian pronunciation/naturalness or records need for approved alternative.
 
@@ -67,11 +67,11 @@ Live account/voice/photo acceptance requires the phone; simulated tests do not e
 
 Dependencies: W02, W05, W06.
 
-- [ ] Explicit photo permission/picker and upload consent; strip EXIF and minimize image payload.
+- [x] Explicit photo permission/picker and upload consent; strip EXIF and minimize image payload.
 - [ ] Combine image with available museum/location/tour context using an approved vision model.
-- [ ] Communicate uncertainty and let user confirm candidate artworks.
-- [ ] Reuse canonical identity and session deduplication; skipped/completed artwork never auto-repeats.
-- [ ] No retained museum images by default; CI uses licensed/synthetic fixtures.
+- [x] Communicate uncertainty and let user confirm candidate artworks.
+- [x] Reuse canonical identity and session deduplication; skipped/completed artwork never auto-repeats.
+- [x] No retained museum images by default; CI uses licensed/synthetic fixtures.
 
 Live account/voice/photo acceptance requires the phone; simulated tests do not establish entitlement, voice naturalness or artwork accuracy.
 
@@ -79,10 +79,10 @@ Live account/voice/photo acceptance requires the phone; simulated tests do not e
 
 Dependencies: W04, W05, W06, W07.
 
-- [ ] Deterministic replay covers route deviation, nearby off-route POIs and silence.
-- [ ] Cover repeated POIs, skipped playback, process restart, alias merge and cancellation races.
+- [x] Deterministic replay covers route deviation, nearby off-route POIs and silence.
+- [x] Cover repeated POIs, skipped playback, process restart, alias merge and cancellation races.
 - [ ] Cover museum context, denied permissions, offline/missing voice and exhausted subscription.
-- [ ] GitHub Actions runs unit/integration/emulator tests without paid credentials or real traces.
+- [x] GitHub Actions runs unit/integration/emulator tests without paid credentials or real traces.
 - [ ] Publish installable APK, checksums, test reports and documented manual device verification.
 
 ## Scope clarification
