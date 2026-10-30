@@ -32,6 +32,10 @@ class MainActivity: ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme(colorScheme=lightColorScheme(primary=Color(0xFF176B59),secondary=Color(0xFF715930))) { GuideHome() } }
     }
+    override fun onResume() {
+        super.onResume()
+        (application as GuideApp).guide.refreshConnection()
+    }
 }
 
 @Composable
@@ -122,20 +126,22 @@ fun GuideHome() {
                 1 -> MuseumScreen(guide,s)
                 2 -> {
                     Text("ChatGPT и голос",style=MaterialTheme.typography.titleLarge)
-                    Text(if(s.connected)"Аккаунт ChatGPT подключён. Доступ к моделям и подписке проверяется сервером." else "Вход через официальный OAuth с PKCE. Пароли, cookie и API-ключи не запрашиваются.")
+                    Text(if(s.connected)"Аккаунт ChatGPT подключён. ${if(s.planEnabled)"Разрешение использовать подписку подтверждено." else "Разрешение использовать подписку пока не предоставлено."}" else "Вход через официальный OAuth с PKCE. Пароли, cookie и API-ключи не запрашиваются.")
+                    if(s.authStatus.isNotBlank())Text("Статус входа: ${s.authStatus}",style=MaterialTheme.typography.bodyMedium)
                     if(s.authenticating) {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("Завершите вход в браузере и вернитесь. Ожидание — до трёх минут.")
                         OutlinedButton(onClick={guide.cancelAuth()}) { Text("Отменить вход") }
                     } else Button(onClick={guide.beginAuth(::open)},Modifier.fillMaxWidth()) { Text("Continue with ChatGPT") }
                     if(s.connected) {
+                        if(!s.planEnabled && !s.authenticating)Button(onClick={guide.beginAuth(::open,true)}) { Text("Разрешить использование подписки") }
                         TextButton(onClick={guide.logout()}) { Text("Выйти и удалить токены с телефона") }
-                        Text("Вы используете подписку ChatGPT. Управляйте лимитами в ChatGPT; приложение не покупает кредиты и не переключается на API-ключ.")
+                        Text(if(s.planEnabled)"Разрешение подписки предоставлено. Управляйте лимитами в ChatGPT; приложение не покупает кредиты и не переключается на API-ключ." else "Вход в профиль выполнен. AI-запросы отключены, пока использование подписки не будет отдельно разрешено.")
                     }
                     TextButton(onClick={open("https://chatgpt.com/settings/usage")}) { Text("Управлять использованием ChatGPT") }
                     Text("Перед AI-запросами отключите использование дополнительных кредитов и автоматические покупки для этого приложения в ChatGPT. Приложение не может проверить эти настройки на сервере. Если отключить их нельзя — не включайте AI-запросы.")
                     Row { Checkbox(s.creditsDisabled,{guide.billingConfirmed(it)});Text("Подтверждаю: дополнительные кредиты и автопокупки отключены",Modifier.padding(top=12.dp)) }
-                    if(s.connected) {
+                    if(s.connected && s.planEnabled) {
                         OutlinedButton(onClick={guide.loadModels()}) { Text("Загрузить доступные модели") }
                         var expanded by remember { mutableStateOf(false) }
                         Box {
@@ -158,7 +164,7 @@ fun GuideHome() {
                     TextButton(onClick={context.stopService(Intent(context,GuideService::class.java));guide.replay();tab=0}) { Text("Запустить GPS-реплей без сети") }
                     if(s.replay)TextButton(onClick={guide.exitReplay()}) { Text("Завершить GPS-реплей") }
                     TextButton(onClick={open("https://github.com/artkashin/ai-walking-guide")}) { Text("Исходный код и ограничения") }
-                    Text("Версия 0.2.0 · личный тестовый выпуск",style=MaterialTheme.typography.bodySmall)
+                    Text("Версия 0.2.1 · личный тестовый выпуск",style=MaterialTheme.typography.bodySmall)
                 }
             }
         }

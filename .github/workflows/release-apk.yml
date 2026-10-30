@@ -1,6 +1,19 @@
 name: Publish verified APK
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: APK version (for example 0.2.1)
+        required: true
+        type: string
+      build_run:
+        description: Successful Android debug APK run ID on main
+        required: true
+        type: string
+      test_run:
+        description: Successful Android emulator run ID for the same commit
+        required: true
+        type: string
 permissions:
   contents: write
   actions: read
@@ -11,22 +24,52 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_BUILD_RUN: ${{ inputs.build_run }}
+      RELEASE_TEST_RUN: ${{ inputs.test_run }}
     steps:
       - uses: actions/checkout@v4
-      - name: Verify source run and download its tested APK
+      - name: Validate inputs and successful main-branch runs
+        shell: bash
         run: |
-          test "$(gh api repos/$GH_REPO/actions/runs/41139927009 --jq .conclusion)" = success
-          test "$(gh api repos/$GH_REPO/actions/runs/41139927009 --jq .head_sha)" = 607370aac93195d53aaf6c994cbe8d072fde8352
-          test "$(gh api repos/$GH_REPO/actions/runs/41139924579 --jq .conclusion)" = success
-          gh run download 41139927009 --name ai-walking-guide-debug-8 --dir package
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_BUILD_RUN" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TEST_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$RELEASE_BUILD_RUN" > build-run.json
+          gh api "repos/$GH_REPO/actions/runs/$RELEASE_TEST_RUN" > test-run.json
+          python3 - <<'PY'
+          import json, os
+          b=json.load(open('build-run.json')); t=json.load(open('test-run.json'))
+          assert b['conclusion']==t['conclusion']=='success'
+          assert b['head_sha']==t['head_sha']
+          assert b['head_branch']==t['head_branch']=='main'
+          assert b['event'] in ('push','workflow_dispatch')
+          assert t['event']=='workflow_dispatch'
+          assert b['head_repository']['full_name']==t['head_repository']['full_name']==os.environ['GH_REPO']
+          assert b['path']=='.github/workflows/android.yml'
+          assert t['path']=='.github/workflows/android-ui.yml'
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('RELEASE_TARGET_SHA='+b['head_sha']+'\n')
+          PY
+      - name: Download and verify tested APK
+        shell: bash
+        run: |
+          RELEASE_ARTIFACT_NAME=$(gh api "repos/$GH_REPO/actions/runs/$RELEASE_BUILD_RUN/artifacts" --jq '.artifacts[] | select(.name | startswith("ai-walking-guide-debug-")) | .name')
+          [[ "$RELEASE_ARTIFACT_NAME" =~ ^ai-walking-guide-debug-[0-9]+$ ]]
+          gh run download "$RELEASE_BUILD_RUN" --name "$RELEASE_ARTIFACT_NAME" --dir package
           EXPECTED_APK_SHA=$(awk '{print $1}' package/SHA256SUMS)
           ACTUAL_APK_SHA=$(sha256sum package/app-debug.apk | awk '{print $1}')
           test "$EXPECTED_APK_SHA" = "$ACTUAL_APK_SHA"
+          gh api "repos/$GH_REPO/contents/app/build.gradle.kts?ref=$RELEASE_TARGET_SHA" > source-build.json
+          python3 - <<'PY'
+          import json, base64, os, re
+          source=base64.b64decode(json.load(open('source-build.json'))['content']).decode()
+          assert re.search(r'versionName\s*=\s*"'+re.escape(os.environ['RELEASE_VERSION'])+r'"', source)
+          PY
           mkdir -p dist
-          cp package/app-debug.apk dist/ai-walking-guide-0.2.0.apk
+          cp package/app-debug.apk "dist/ai-walking-guide-$RELEASE_VERSION.apk"
       - name: Write checksum
         working-directory: dist
-        run: sha256sum ai-walking-guide-0.2.0.apk > ai-walking-guide-0.2.0.apk.sha256
+        run: sha256sum "ai-walking-guide-$RELEASE_VERSION.apk" > "ai-walking-guide-$RELEASE_VERSION.apk.sha256"
       - name: Publish APK without a ZIP wrapper
         run: |
-          gh release create v0.2.0 dist/ai-walking-guide-0.2.0.apk dist/ai-walking-guide-0.2.0.apk.sha256 --target 607370aac93195d53aaf6c994cbe8d072fde8352 --prerelease --title 'AI Walking Guide 0.2.0 — APK для телефона' --notes-file docs/RELEASE_0.2.0.md
+          gh release create "v$RELEASE_VERSION" "dist/ai-walking-guide-$RELEASE_VERSION.apk" "dist/ai-walking-guide-$RELEASE_VERSION.apk.sha256" --target "$RELEASE_TARGET_SHA" --prerelease --title "AI Walking Guide $RELEASE_VERSION — APK для телефона" --notes-file "docs/RELEASE_$RELEASE_VERSION.md"

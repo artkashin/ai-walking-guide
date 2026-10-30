@@ -30,6 +30,13 @@ class ChatGptPkceTest {
         assertEquals("code" to "oaiapp_saved",ChatGptPkce.validateCallback(a,URI("${a.redirectUri}?state=${a.state}&code=code")))
         assertThrows(IllegalArgumentException::class.java) { ChatGptPkce.validateCallback(a,URI("${a.redirectUri}?state=${a.state}&code=code&client_id=oaiapp_different")) }
     }
+    @Test fun explicitPlanConsentIsRequestedOnlyWhenUserChoosesIt() {
+        val host="urn:uuid:ec0aeb5d-ec6b-4420-a63d-515ed79ab52d"
+        assertFalse(ChatGptPkce.newRegistration(host,1455).authorizationUri.contains("prompt="))
+        val a=ChatGptPkce.newRegistration(host,1455,"oaiapp_saved",requestPlanConsent=true)
+        assertTrue(a.authorizationUri.contains("prompt=consent"))
+        assertTrue(a.authorizationUri.contains("chatgpt.tokens.use.direct"))
+    }
     @Test fun rejectsNonV4HostIdentityAndPrivilegedPort() {
         assertThrows(IllegalArgumentException::class.java) {
             ChatGptPkce.newRegistration("urn:uuid:00000000-0000-0000-0000-000000000000", 1455)

@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import com.artkashin.aiwalkingguide.audio.RussianSpeaker
 import com.artkashin.aiwalkingguide.auth.ChatGptAccount
+import com.artkashin.aiwalkingguide.auth.AuthFailure
+import com.artkashin.aiwalkingguide.auth.AuthStage
 import com.artkashin.aiwalkingguide.net.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,7 @@ data class GuideState(
     val excluded: Set<String> = emptySet(),val history: List<Pair<String,String>> = emptyList(),
     val message: String="Начните прогулку: гид найдёт реальные места рядом с вами.",
     val busy: Boolean=false,val current: Poi?=null,val text: String="",val playing: Boolean=false,val resumable: Boolean=false,
-    val connected: Boolean=false,val authenticating: Boolean=false,val models: List<Pair<String,String>> = emptyList(),val model: String="",
+    val connected: Boolean=false,val planEnabled: Boolean=false,val authStatus: String="",val authenticating: Boolean=false,val models: List<Pair<String,String>> = emptyList(),val model: String="",
     val automatic: Boolean=false,val detail: String="Обычный",val creditsDisabled: Boolean=false,
     val museumBusy: Boolean=false,val museumCandidate: Poi?=null,val museumAnswer: String="",val replay: Boolean=false
 )
@@ -34,7 +36,7 @@ class TourController(private val context: Context) {
     private val db=TourStore(context)
     private var session=db.session()
     val account=ChatGptAccount(context)
-    private val mutable=MutableStateFlow(GuideState(connected=account.connected(),creditsDisabled=false))
+    private val mutable=MutableStateFlow(GuideState(connected=account.connected(),planEnabled=account.planEnabled(),authStatus=account.diagnostic(),creditsDisabled=false))
     val state=mutable.asStateFlow()
     private val wiki=WikipediaPois()
     private var searchJob: Job?=null;private var storyJob: Job?=null;private var museumJob: Job?=null;private var authJob: Job?=null
@@ -97,7 +99,7 @@ class TourController(private val context: Context) {
     }
     private fun maybeNarrate() {
         val s=state.value
-        if(!s.active || !s.automatic || s.current!=null || !s.connected || !s.creditsDisabled || s.model.isBlank() || s.replay)return
+        if(!s.active || !s.automatic || s.current!=null || !s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank() || s.replay)return
         val p=s.position?:return
         if(android.os.SystemClock.elapsedRealtime()-lastFix>30000)return
         GuidePolicy.candidate(p,s.pois,s.excluded)?.let{narrate(it)}
@@ -111,7 +113,7 @@ class TourController(private val context: Context) {
     fun narrate(raw: Poi) {
         val s=state.value
         if(s.replay) { notice("Реплей проверяет память и маршрут; сетевые запросы отключены.");return }
-        if(!s.connected || !s.creditsDisabled || s.model.isBlank()) { notice("Войдите в ChatGPT, подтвердите отключение платных кредитов и выберите доступную модель.");return }
+        if(!s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank()) { notice("Войдите в ChatGPT, подтвердите отключение платных кредитов и выберите доступную модель.");return }
         if(s.current!=null) { notice("Сначала завершите или пропустите текущий рассказ.");return }
         val p=db.resolve(raw)
         if(!db.reserve(session,p)) { notice("Это место уже было рассказано или пропущено в этой экскурсии.");return }
@@ -150,19 +152,30 @@ class TourController(private val context: Context) {
         mutable.update{it.copy(current=null,playing=false,resumable=false)};refreshMemory()
         scope.launch { delay(4000);maybeNarrate() }
     }
-    fun beginAuth(openBrowser: (String)->Unit) {
+    fun refreshConnection() {
+        val connected=account.connected();val plan=account.planEnabled()
+        mutable.update{it.copy(connected=connected,planEnabled=plan,automatic=if(connected && plan)it.automatic else false,authStatus=account.diagnostic(),models=if(plan)it.models else emptyList(),model=if(plan)it.model else "",
+            message=if(connected && !it.connected) { if(plan)"Аккаунт подключён. Разрешение подписки подтверждено." else "Вход выполнен. Использование подписки нужно разрешить отдельно." } else it.message)}
+    }
+    fun beginAuth(openBrowser: (String)->Unit,requestPlanConsent: Boolean=false) {
         if(state.value.replay) { notice("Сначала завершите GPS-реплей в настройках.");return }
         if(state.value.authenticating)return
         authJob=scope.launch {
             mutable.update{it.copy(authenticating=true)}
-            try { val url=account.begin();openBrowser(url);account.finish();mutable.update{it.copy(connected=true)};notice("Вы используете подписку ChatGPT. Управляйте лимитами в настройках ChatGPT.");loadModels() }
+            try {
+                val url=account.begin(requestPlanConsent);mutable.update{it.copy(authStatus=AuthStage.WAITING.label)};openBrowser(url)
+                account.finish { stage -> mutable.update{it.copy(authStatus=stage.label)} }
+                refreshConnection()
+                if(account.planEnabled()) { notice("Аккаунт подключён. Разрешение подписки подтверждено; фактический запрос проверьте отдельной кнопкой.");loadModels() }
+                else notice("Вход выполнен. Использование подписки не разрешено. Нажмите «Разрешить использование подписки» в настройках гида.")
+            }
             catch(e: CancellationException) { throw e }
-            catch(e: Exception) { notice("Вход не завершён. Сервер мог отклонить регистрацию, разрешения или callback. Повторите вход на телефоне. ${safe(e)}") }
-            finally { account.cancel();mutable.update{it.copy(authenticating=false)} }
+            catch(e: Exception) { val text=if(e is AuthFailure)e.userMessage() else "Не удалось начать вход. Повторите вход с открытым приложением.";mutable.update{it.copy(authStatus=text)};notice(text) }
+            finally { account.cancel();mutable.update{it.copy(authenticating=false,connected=account.connected(),planEnabled=account.planEnabled())} }
         }
     }
-    fun cancelAuth() { account.cancel();authJob?.cancel();mutable.update{it.copy(authenticating=false)} }
-    fun logout() { cancelAuth();automatic(false);skip();museumJob?.cancel();val old=account.disconnectLocal();scope.launch { try { account.revoke(old) } catch(_: Exception) { notice("Токены удалены локально. Не удалось подтвердить отзыв на сервере — отключите приложение в настройках ChatGPT.") } };mutable.update{it.copy(connected=false,models=emptyList(),model="",creditsDisabled=false,museumBusy=false,museumCandidate=null)};notice("Токены удалены с телефона. Отозвать связь с приложением можно в настройках ChatGPT.") }
+    fun cancelAuth() { account.cancel();authJob?.cancel();mutable.update{it.copy(authenticating=false)};refreshConnection() }
+    fun logout() { cancelAuth();automatic(false);skip();museumJob?.cancel();val old=account.disconnectLocal();scope.launch { try { account.revoke(old) } catch(_: Exception) { notice("Токены удалены локально. Не удалось подтвердить отзыв на сервере — отключите приложение в настройках ChatGPT.") } };mutable.update{it.copy(connected=false,planEnabled=false,authStatus=account.diagnostic(),models=emptyList(),model="",creditsDisabled=false,museumBusy=false,museumCandidate=null)};notice("Токены удалены с телефона. Отозвать связь с приложением можно в настройках ChatGPT.") }
     fun loadModels() { if(state.value.replay)return;scope.launch {
         try { val models=account.models();mutable.update{it.copy(models=models,model=it.model.takeIf{old->models.any{m->m.first==old}}?:models.firstOrNull()?.first.orEmpty())};if(models.isEmpty())notice("В аккаунте нет доступных моделей.") }
         catch(e: Exception) { if(e is CancellationException)throw e;notice(safe(e)) }
@@ -175,7 +188,7 @@ class TourController(private val context: Context) {
     fun museum(uri: Uri,museum: String) {
         val s=state.value
         if(s.replay) { cleanupPhoto(uri);notice("В реплее фотографии не отправляются. Завершите реплей в настройках.");return }
-        if(!s.connected || !s.creditsDisabled || s.model.isBlank()) { cleanupPhoto(uri);notice("Для распознавания войдите в ChatGPT и выберите модель.");return }
+        if(!s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank()) { cleanupPhoto(uri);notice("Для распознавания войдите в ChatGPT и выберите модель.");return }
         museumJob?.cancel();mutable.update{it.copy(museumBusy=true,museumCandidate=null,museumAnswer="")}
         museumJob=scope.launch {
             try {

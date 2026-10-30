@@ -11,20 +11,21 @@ import com.nimbusds.jwt.SignedJWT
 object IdTokenVerifier {
     fun verify(raw: String,keys: JWKSet,client: String,nonce: String?,now: Long=System.currentTimeMillis()): String {
         val jwt=SignedJWT.parse(raw)
-        val key=keys.getKeyByKeyId(jwt.header.keyID)?:throw IllegalArgumentException("Signing key absent")
+        val key=keys.getKeyByKeyId(jwt.header.keyID)?:throw IdentityCheckFailure(AuthError.ID_SIGNATURE)
         val valid=when {
             jwt.header.algorithm==JWSAlgorithm.RS256 && key is RSAKey -> jwt.verify(RSASSAVerifier(key))
             jwt.header.algorithm==JWSAlgorithm.ES256 && key is ECKey -> jwt.verify(ECDSAVerifier(key))
             else -> false
         }
-        require(valid)
+        if(!valid)throw IdentityCheckFailure(AuthError.ID_SIGNATURE)
         val c=jwt.jwtClaimsSet
-        require(c.issuer=="https://auth.openai.com" && client in c.audience && c.expirationTime?.time?.let{it>now}==true)
-        require(c.notBeforeTime?.time?.let{it<=now+30000}!=false)
-        require(c.issueTime?.time?.let{it<=now+30000}==true)
-        if(c.audience.size>1)require(c.getStringClaim("azp")==client)
-        if(nonce!=null)require(c.getStringClaim("nonce")==nonce)
-        require(!c.subject.isNullOrBlank())
+        if(c.issuer!="https://auth.openai.com")throw IdentityCheckFailure(AuthError.ID_ISSUER)
+        if(client !in c.audience)throw IdentityCheckFailure(AuthError.ID_AUDIENCE)
+        if(c.expirationTime?.time?.let{it>now}!=true)throw IdentityCheckFailure(AuthError.ID_EXPIRED)
+        if(c.notBeforeTime?.time?.let{it<=now+30000}==false || c.issueTime?.time?.let{it<=now+30000}!=true)throw IdentityCheckFailure(AuthError.ID_TIME)
+        if(c.audience.size>1 && c.getStringClaim("azp")!=client)throw IdentityCheckFailure(AuthError.ID_AUDIENCE)
+        if(nonce!=null && c.getStringClaim("nonce")!=nonce)throw IdentityCheckFailure(AuthError.ID_NONCE)
+        if(c.subject.isNullOrBlank())throw IdentityCheckFailure(AuthError.ID_SUBJECT)
         return c.subject
     }
 }

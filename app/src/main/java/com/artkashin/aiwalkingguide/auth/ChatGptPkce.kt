@@ -24,7 +24,7 @@ object ChatGptPkce {
         val issuedClient: String? = null
     )
 
-    fun newRegistration(hostId: String, port: Int, issuedClient: String? = null, idTokenHint: String? = null): Attempt {
+    fun newRegistration(hostId: String, port: Int, issuedClient: String? = null, idTokenHint: String? = null, requestPlanConsent: Boolean = false): Attempt {
         require(hostId.startsWith("urn:uuid:"))
         val hostUuid = java.util.UUID.fromString(hostId.removePrefix("urn:uuid:"))
         require(hostUuid.version() == 4 && hostUuid.variant() == 2)
@@ -49,6 +49,7 @@ object ChatGptPkce {
             params.remove("agent_name_hint")
             if (!idTokenHint.isNullOrBlank()) params["id_token_hint"] = idTokenHint
         }
+        if (requestPlanConsent) params["prompt"] = "consent"
         val query = params.entries.joinToString("&") { (k, v) ->
             "$k=${URLEncoder.encode(v, "UTF-8")}"
         }

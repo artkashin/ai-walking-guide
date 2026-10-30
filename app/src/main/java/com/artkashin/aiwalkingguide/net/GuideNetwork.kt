@@ -25,12 +25,21 @@ object GuideHttp {
         }
     }
     fun check(c: HttpsURLConnection) {
-        if(c.responseCode !in 200..299) throw ServiceFailure(when(c.responseCode) {
+        if(c.responseCode !in 200..299) {
+            val allowed=setOf("invalid_grant","invalid_client","invalid_scope","access_denied","unauthorized_client","temporarily_unavailable","invalid_request","server_error","unsupported_grant_type",
+                "subscription_sharing_user_not_eligible","subscription_sharing_usage_limit_exceeded","subscription_sharing_usage_unavailable","subscription_sharing_unsupported_capability","subscription_sharing_route_not_supported","subscription_sharing_invalid_user","chatpass_v2_scope_not_authorized","chatpass_v2_invalid_authorization_context")
+            val code=try {
+                val bytes=c.errorStream?.use{input->val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(1024);while(out.size()<16384){val n=input.read(buffer,0,minOf(buffer.size,16384-out.size()));if(n<0)break;out.write(buffer,0,n)};out.toByteArray()}
+                val j=JSONObject(bytes?.toString(Charsets.UTF_8)?:"{}");val value=j.opt("error")
+                (if(value is JSONObject)value.optString("code") else value as? String)?.takeIf{it in allowed}
+            } catch(_: Exception) { null }
+            throw ServiceFailure(when(c.responseCode) {
             401->"Сеанс ChatGPT истёк. Войдите снова."
             403->"Сервис не разрешил доступ этому приложению или аккаунту."
             429->"Достигнут лимит сервиса. Повторите позже; платного переключения нет."
             else->"Сервис временно недоступен (HTTP ${c.responseCode})."
-        })
+            }+" HTTP ${c.responseCode}."+(code?.let{" Код сервера: $it."}?:""))
+        }
     }
     suspend fun json(url: String, body: String?=null, token: String?=null, form: Boolean=false): JSONObject = withContext(Dispatchers.IO) {
         val c=connection(url,token)
