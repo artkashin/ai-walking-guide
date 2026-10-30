@@ -31,10 +31,10 @@
       "W01"
     ],
     "acceptance": [
-      "Investigate walking support in Google Maps/Routes/Navigation products and document selected approach.",
-      "Obtain explicit approval for required billing/account permissions before enabling Google services.",
-      "Render map and advisory walking route; foreground GPS permission denied/approximate/unavailable states work.",
-      "Never persist precise traces remotely; CI uses fake GPS and providers without paid secrets."
+      "Use official Google Maps URLs for walking navigation from current position, as explicitly approved by the user; no embedded billed SDK or API key.",
+      "Research and document the external-Maps scope and its limits; no new billing or account provisioning.",
+      "Implement foreground GPS with explicit location/search consent, permission-denied/approximate/unavailable states and stale-fix rejection.",
+      "Keep POI discovery independent of the goal list, and never persist precise traces remotely; CI uses synthetic GPS without paid secrets."
     ]
   },
   {

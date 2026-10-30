@@ -1,29 +1,44 @@
-# AI Walking Guide
+# AI Walking Guide · Гид рядом
 
-Personal Android tour guide, Kotlin + Jetpack Compose. Russian narration, advisory walking routes, independent nearby discovery, museum photo context, and local session memory are the intended product.
+Личный Android-гид на Kotlin/Jetpack Compose: прогулка с GPS, реальные объекты рядом, русские AI-рассказы, пешая навигация через внешний Google Maps и музейный режим по фото.
 
-**Current state:** W01 Android foundation is complete with a [successful GitHub Actions build](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116) and a [downloadable debug APK ZIP](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116/artifacts/13016390027). W02 official documentation is reviewed with five passing offline PKCE tests. No map, GPS, AI requests, narration or live sign-in is enabled yet. See [progress](docs/PROGRESS.md) for verified outcomes and remaining tests.
+## Скачать и запустить
 
-## Build entirely in the cloud
+**[APK 0.2.0 — прямая загрузка](https://github.com/artkashin/ai-walking-guide/releases/download/v0.2.0/ai-walking-guide-0.2.0.apk)** · [Все выпуски](https://github.com/artkashin/ai-walking-guide/releases) · [Инструкция на русском](docs/USER_GUIDE_RU.md)
 
-Push to `main` or open a pull request: **Android debug APK** runs unit tests, lint and `assembleDebug`. Under Actions → successful run → Artifacts, download `ai-walking-guide-debug-<run>`, unzip it, and install `app-debug.apk` on Android 8.0+. Allow installation from your chosen file manager when Android asks. Debug builds are for personal testing, not Play Store distribution. Artifacts expire after 14 days; rerun the workflow to regenerate. Each cloud runner generates a debug signing key, so an APK from another run may not install over an earlier debug build. If Android reports a signature conflict, uninstalling the earlier test build permits installation but removes its app data.
+Android 8.0 и новее. Это личная тестовая debug-сборка. GitHub Actions собирает APK и проверяет код; реальный вход вашего аккаунта ChatGPT, качество голоса и прогулка проверяются на телефоне. При несовпадении debug-подписи предыдущую тестовую сборку может потребоваться удалить — это удалит её локальные данные.
 
-The manual **Android emulator smoke test** workflow verifies launch and the authentication status UI; its [first API 35 run passed](https://github.com/artkashin/ai-walking-guide/actions/runs/41134533036). No secrets or paid AI services are needed to build. GitHub Actions usage remains subject to the account's quota; do not enable paid overages without approval.
+## Возможности
 
-Optional cloud-shell command, with JDK 17 and Android SDK available:
+- Поиск Wikipedia рядом с фактической позицией, независимо от выбранных целей. Русский поиск с английским резервом, источники и локальный кэш.
+- Рекомендательные цели адаптируются от текущей позиции. Google Maps строит пеший путь; встроенного платного Maps SDK нет.
+- Локальная память экскурсии: завершённые и пропущенные места не повторяются автоматически, включая восстановление после перезапуска. Отсутствие подходящих фактов — нормальное молчание.
+- Официальный ChatGPT OAuth + PKCE, проверка подписей, Android Keystore, обновление и отзыв токенов. Потоковый Responses API, только завершённые ответы.
+- Русская озвучка установленным офлайн-голосом, кэш файлов, пауза/продолжение/пропуск и обработка аудиофокуса.
+- Фото музея/этикетки через Photo Picker или камеру: отдельное согласие, уменьшение, применение ориентации, удаление EXIF, осторожная гипотеза и подтверждение пользователем.
+- Прогулка продолжается с постоянным уведомлением поверх Google Maps. Новая экскурсия и удаление данных выполняются явно.
+- GPS-реплей без сети, JVM-тесты и инструментальные тесты на API 26/35.
+
+## Подписка и приватность
+
+Платный OpenAI API, API-ключи, извлечённые cookie, покупки кредитов и облачная платная речь не подключены. Для AI-запросов нужно войти на телефоне, выбрать модель и отключить дополнительные кредиты/автопокупки в ChatGPT. Приложение требует подтверждения этого действия, но не может проверить серверные настройки оплаты. Если отключить их нельзя — оставьте AI-запросы выключенными.
+
+Доступность официального входа/подписки для вашего аккаунта и браузера не доказана синтетическими CI-тестами. В настройках есть отдельная проверка завершённого запроса по подписке. Подробности — в [отчёте W02](docs/CHATGPT_FEASIBILITY.md).
+
+История и звук остаются локально. Текущие координаты запросов видны Wikipedia, выбранные факты/подтверждённые фото — OpenAI, цель навигации — Google Maps. Полный GPS-трек не сохраняется и не отправляется. Токены зашифрованы и исключены из backup/переноса. Аналитики нет.
+
+## Cloud-first
+
+Push в main или pull request запускает **Android debug APK**: JVM-тесты, lint, assembleDebug, APK + SHA256SUMS и отчёты как workflow artifacts. Артефакты ZIP хранятся 14 дней; APK в Releases скачивается отдельно. **Android emulator smoke test** запускается вручную и проверяет API 26 и 35 с реальными Android SQLite/Keystore/фото/GPS-адаптерами на синтетических данных. Аккаунты, реальные фотографии и оплачиваемые ключи в CI не нужны.
 
 ```sh
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-## Documentation
+Для облачной оболочки нужны JDK 17 и Android SDK 35; локальный компьютер не требуется. Увеличение платных квот CI без разрешения не предусмотрено.
 
-- [Constitution](docs/CONSTITUTION.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-- [Decisions](docs/DECISIONS.md)
-- [Progress](docs/PROGRESS.md)
-- [ChatGPT feasibility](docs/CHATGPT_FEASIBILITY.md)
-- [Russian speech recommendation](docs/SPEECH_PROVIDER.md)
+## Документация
 
-`planning/issues.json` holds W01–W08 issue specifications. `python3 scripts/create_issues.py` creates missing issues using an authenticated `gh` CLI, with dependency links. Run from a cloud shell with repository access. Never upload tokens, location history, signing keys, or account credentials to issues or artifacts.
+[Конституция](docs/CONSTITUTION.md) · [Архитектура](docs/ARCHITECTURE.md) · [План W01–W08](docs/IMPLEMENTATION_PLAN.md) · [Решения](docs/DECISIONS.md) · [Прогресс и результаты проверок](docs/PROGRESS.md) · [Рекомендация речи](docs/SPEECH_PROVIDER.md)
+
+Спецификации задач — planning/issues.json. scripts/create_issues.py создаёт отсутствующие задачи в указанном репозитории через авторизованный gh, сохраняя зависимости. Не публикуйте токены, точные треки, фотографии или ключи подписи в issues/артефактах.

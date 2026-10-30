@@ -1,45 +1,40 @@
-# Progress — 2026-10-30
+# Progress — 0.2.0, 2026-10-30
 
-## W01 — Android Foundation
+## Delivery
 
-The Kotlin/Compose Android project is published in [artkashin/ai-walking-guide](https://github.com/artkashin/ai-walking-guide).
+Source: `607370aac93195d53aaf6c994cbe8d072fde8352`. App versionCode 2/versionName 0.2.0; Android 8.0+.
 
-- SDK 35, minimum API 26, JDK 17 and checksum-pinned Gradle 8.13 wrapper.
-- Russian Compose home/status screen; no location, AI or paid service enabled.
-- Five offline PKCE protocol JVM tests pass in the cloud workspace.
-- Cloud workspace wrapper build, lint and application/instrumentation APK compilation passed. Lint: zero errors, four dependency-version notices.
-- Android backup and device-transfer exclusions are explicit. No credentials or signing keys are committed.
-- **GitHub Actions build passed:** [run 41134562116](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116), source commit `7da3e13ff5df59e6b649a7e6565e181602961e99`. Five JVM tests passed (zero failures/errors/skips), lint and debug APK assembly succeeded. Downloaded CI reports confirm zero lint errors and five warnings: four dependency-version notices and an older target-SDK notice. These are follow-up maintenance items; this is a personal sideload build, not a Play Store submission.
-- **Download:** [ai-walking-guide-debug-2 ZIP](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116/artifacts/13016390027), containing APK and SHA256SUMS; artifact retention 14 days. Downloaded successfully through the GitHub connector, unpacked, checksum compared and APK signature verified.
-- APK SHA-256: `8ff3af1c1920d9e164822058196a7aad1be4e916e45dffad8567d1a9c7e2f0f6`.
-- **Emulator smoke test passed:** [run 41134533036](https://github.com/artkashin/ai-walking-guide/actions/runs/41134533036), API 35 x86_64. It installs/launches the app and verifies the Russian title and expandable authentication-status UI. Source commit `9ef98e2` has the same app code as the APK build; the later commit only changes CI SDK setup. Physical-device installation and API 26 runtime compatibility have not been tested. The debug key is generated per runner; see README for test-build upgrade limitations.
-- **W01 complete.** W02 remains open for live authentication and subscription compatibility testing.
+- **GitHub Actions build passed:** [41139927009](https://github.com/artkashin/ai-walking-guide/actions/runs/41139927009). Downloaded its reports: 19 JVM tests, zero failures/errors; lint zero errors and 20 maintenance warnings (dependency/target API, KTX suggestions, platform Exif recommendation and stopService lint notices).
+- **Both emulator jobs passed:** [41139924579](https://github.com/artkashin/ai-walking-guide/actions/runs/41139924579), 7 tests on API 26 and 7 on API 35, no skipped/failed tests. Tests cover UI, stale/fresh actual Android location adapter replay, SQLite atomic reservations/restart/aliases, encrypted Keystore storage and photo resize/orientation/EXIF stripping.
+- Downloaded the workflow APK through the GitHub connector, compared its SHA256SUMS and verified its APK signature with apksigner.
+- APK SHA-256: `2abae1965614b066e79b55231b315de56ba9cedd7bde1211c3277affe86f9b49`.
+- Direct APK release is being published by the dedicated Publish verified APK workflow. It downloads only the successful source build and requires the successful emulator run; no rebuild or private signing secret is involved.
 
-The first Actions attempt failed because setup-android defaults included the retired `tools` package. The workflow now requests `platform-tools` explicitly.
+## Implemented scope
 
-## W02 — ChatGPT feasibility
-
-Official SIWC OSS/local documentation was reviewed. The offline Kotlin PKCE/callback protocol PoC passes five tests. **No live Android OAuth, subscription text generation, or speech entitlement has been verified.** No consented OAuth token is available, and the live phone auth adapter remains unimplemented. An emulator UI smoke test does not test ChatGPT login. See [feasibility report](CHATGPT_FEASIBILITY.md) for exact findings, gaps, official sources and the next experiment.
-
-Recommend installed offline Russian Android TTS for the first speech implementation, synthesizing files for cached Media3 playback. Actual Russian voice availability and naturalness require a device quality check. Cloud speech remains subject to explicit approval; see [speech recommendation](SPEECH_PROVIDER.md).
-
-## Issues and dependencies
-
-All issues have acceptance criteria and dependency links:
-
-| Milestone | Issue |
+| Milestone | Implementation and acceptance status |
 | --- | --- |
-| W01 Android Foundation | [#1](https://github.com/artkashin/ai-walking-guide/issues/1) |
-| W02 ChatGPT feasibility | [#2](https://github.com/artkashin/ai-walking-guide/issues/2) |
-| W03 Maps and GPS | [#3](https://github.com/artkashin/ai-walking-guide/issues/3) |
-| W04 Adaptive routes | [#4](https://github.com/artkashin/ai-walking-guide/issues/4) |
-| W05 POIs and session memory | [#5](https://github.com/artkashin/ai-walking-guide/issues/5) |
-| W06 Russian narration/playback | [#6](https://github.com/artkashin/ai-walking-guide/issues/6) |
-| W07 Museum identification | [#7](https://github.com/artkashin/ai-walking-guide/issues/7) |
-| W08 Replay and end-to-end tests | [#8](https://github.com/artkashin/ai-walking-guide/issues/8) |
+| [W01 #1](https://github.com/artkashin/ai-walking-guide/issues/1) | Foundation verified and closed; original build [41134562116](https://github.com/artkashin/ai-walking-guide/actions/runs/41134562116). |
+| [W02 #2](https://github.com/artkashin/ai-walking-guide/issues/2) | Official local-phone OAuth, PKCE, signed claims, secure storage, refresh/revocation, model list and SSE implemented. Live account consent/inference remains unverified. |
+| [W03 #3](https://github.com/artkashin/ai-walking-guide/issues/3) | External Maps chosen/approved by user; no billed SDK. Foreground GPS/permission UI and fresh/stale replay implemented/tested. Real walking/device battery behavior still requires phone acceptance. |
+| [W04 #4](https://github.com/artkashin/ai-walking-guide/issues/4) | Actual-position nearest-next advisory goals, reached-goal removal and Maps walking URL without stale origin; route/silence/replay unit tests pass. Google Maps owns path geometry/replanning. |
+| [W05 #5](https://github.com/artkashin/ai-walking-guide/issues/5) | Real Wikipedia search, canonical Wikidata/page aliases, local transactional session memory and terminal recovery verified. No zones. Public English API smoke returned three real POIs; Russian API was temporarily busy and fallback is handled. |
+| [W06 #6](https://github.com/artkashin/ai-walking-guide/issues/6) | Grounded Russian text generation, explicit SILENCE option, offline TTS synthesis/cache and Media3 controls implemented. Real installed voice quality/audio focus on phone remains unverified. |
+| [W07 #7](https://github.com/artkashin/ai-walking-guide/issues/7) | Camera/picker/consent, sanitized images, contextual vision request and user confirmation implemented; photo privacy transformations tested on both APIs. Real model/photograph accuracy remains unverified. |
+| [W08 #8](https://github.com/artkashin/ai-walking-guide/issues/8) | JVM and two-API instrumented CI, actual GPS adapter replay and APK/checksum verified. Real account, real walk, OEM battery and voice/artwork checks remain physical-phone acceptance. |
 
-W03–W08 implementation has not started. Google service/billing choices and any additional account permissions require approval before enabling live adapters. Location history stays local by design.
+## What has NOT been established
 
-## GitHub access resolved
+CI does not log into the user's ChatGPT account, consume subscription usage or test an entitled real inference request. Official registration/loopback/model admission can still fail for an account/browser; the app reports failure and provides an explicit subscription connection test. No separately billed API, API key, cookie extraction, Google Cloud billing, credit purchase or cloud speech has been used.
 
-The initial connection was installed only on AdaptiveBS and denied writes to the personal repository. At the user's request the connection was removed and reestablished. The user installed ChatGPT Codex Connector on artkashin; repository push, issue creation and Actions dispatch now work. No further GitHub permission change is needed for this milestone.
+Only the user can confirm server-side additional credits/automatic purchases are disabled. There is no reviewed request switch enforcing this. The UI requires a confirmation each process before AI requests; if the server controls cannot be disabled, leave AI requests off. See [W02 report](CHATGPT_FEASIBILITY.md).
+
+Russian voice naturalness/availability, real-time foreground GPS on the user's OEM phone, real external Maps navigation and real museum attribution need the steps in [USER_GUIDE_RU.md](USER_GUIDE_RU.md). Artwork outputs are hypotheses, not verified attribution. Wikipedia coverage and identity metadata vary; unlinked semantic duplicates cannot be perfectly resolved by page IDs alone.
+
+## Cloud test fixes
+
+The original foundation setup required replacing the retired SDK tools package with platform-tools. The expanded API 35 museum UI test needed normal scrolling. The GPS replay was adjusted to respect the requested sampling interval/movement and run with a foreground Activity. Earlier failed/cancelled development runs are superseded by the successful final runs above.
+
+## Access and scope decisions
+
+The user installed the GitHub app on personal artkashin; publishing/issues/Actions work. The user explicitly approved external Maps without new billing and preparation of official subscription-only ChatGPT sign-in. All changes remain within ai-walking-guide. Tokens and real location/photo data are absent from CI.

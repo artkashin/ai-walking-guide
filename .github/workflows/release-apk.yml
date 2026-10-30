@@ -1,0 +1,32 @@
+name: Publish verified APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source run and download its tested APK
+        run: |
+          test "$(gh api repos/$GH_REPO/actions/runs/41139927009 --jq .conclusion)" = success
+          test "$(gh api repos/$GH_REPO/actions/runs/41139927009 --jq .head_sha)" = 607370aac93195d53aaf6c994cbe8d072fde8352
+          test "$(gh api repos/$GH_REPO/actions/runs/41139924579 --jq .conclusion)" = success
+          gh run download 41139927009 --name ai-walking-guide-debug-8 --dir package
+          EXPECTED_APK_SHA=$(awk '{print $1}' package/SHA256SUMS)
+          ACTUAL_APK_SHA=$(sha256sum package/app-debug.apk | awk '{print $1}')
+          test "$EXPECTED_APK_SHA" = "$ACTUAL_APK_SHA"
+          mkdir -p dist
+          cp package/app-debug.apk dist/ai-walking-guide-0.2.0.apk
+      - name: Write checksum
+        working-directory: dist
+        run: sha256sum ai-walking-guide-0.2.0.apk > ai-walking-guide-0.2.0.apk.sha256
+      - name: Publish APK without a ZIP wrapper
+        run: |
+          gh release create v0.2.0 dist/ai-walking-guide-0.2.0.apk dist/ai-walking-guide-0.2.0.apk.sha256 --target 607370aac93195d53aaf6c994cbe8d072fde8352 --prerelease --title 'AI Walking Guide 0.2.0 — APK для телефона' --notes-file docs/RELEASE_0.2.0.md

@@ -1,6 +1,6 @@
-# Implementation plan
+# Implementation plan and delivery status
 
-W01 and W02 begin immediately. Validate the foundation before W03–W08 implementation. Independent domain work may proceed after dependencies, but live providers require approved access.
+W01 is verified. W02–W08 implementation is in the 0.2.0 candidate. Automated checks and physical-phone acceptance are tracked separately in PROGRESS.md and GitHub issues. The user approved external Maps and official subscription authentication; no paid API or additional credits are authorized.
 
 ## W01 — Android Foundation
 
@@ -15,20 +15,22 @@ Dependencies: none.
 
 Dependencies: W01.
 
-- [ ] Review current official SIWC OAuth + PKCE and subscription documentation with dated sources.
-- [ ] Document Android callback compatibility, registration, account scopes and security constraints.
-- [ ] Offline PKCE PoC passes tests; implement live local-phone auth only after approval for account permissions.
+- [x] Review current official SIWC OAuth + PKCE and subscription documentation with dated sources.
+- [x] Document Android callback compatibility, registration, account scopes and security constraints.
+- [x] Offline PKCE PoC passes tests; implement live local-phone auth only after approval for account permissions.
 - [ ] Attempt consented subscription text request if available; record response.completed or exact redacted blocker.
-- [ ] Determine Russian speech entitlement or explicitly record it as unconfirmed; no unofficial endpoints or separately billed API.
+- [x] Determine Russian speech entitlement or explicitly record it as unconfirmed; no unofficial endpoints or separately billed API.
+
+Live account/voice/photo acceptance requires the phone; simulated tests do not establish entitlement, voice naturalness or artwork accuracy.
 
 ## W03 — Google Maps walking navigation and GPS
 
 Dependencies: W01.
 
-- [ ] Investigate walking support in Google Maps/Routes/Navigation products and document selected approach.
-- [ ] Obtain explicit approval for required billing/account permissions before enabling Google services.
-- [ ] Render map and advisory walking route; foreground GPS permission denied/approximate/unavailable states work.
-- [ ] Never persist precise traces remotely; CI uses fake GPS and providers without paid secrets.
+- [x] Use official Google Maps URLs for walking navigation from current position, as explicitly approved by the user; no embedded billed SDK or API key.
+- [x] Research and document the external-Maps scope and its limits; no new billing or account provisioning.
+- [ ] Implement foreground GPS with explicit location/search consent, permission-denied/approximate/unavailable states and stale-fix rejection.
+- [ ] Keep POI discovery independent of the goal list, and never persist precise traces remotely; CI uses synthetic GPS without paid secrets.
 
 ## W04 — Dynamic route replanning
 
@@ -59,6 +61,8 @@ Dependencies: W02, W05.
 - [ ] Handle long narration, audio focus, interruptions, cancellation and cache invalidation.
 - [ ] Device evaluation confirms acceptable Russian pronunciation/naturalness or records need for approved alternative.
 
+Live account/voice/photo acceptance requires the phone; simulated tests do not establish entitlement, voice naturalness or artwork accuracy.
+
 ## W07 — Museum photograph identification
 
 Dependencies: W02, W05, W06.
@@ -68,6 +72,8 @@ Dependencies: W02, W05, W06.
 - [ ] Communicate uncertainty and let user confirm candidate artworks.
 - [ ] Reuse canonical identity and session deduplication; skipped/completed artwork never auto-repeats.
 - [ ] No retained museum images by default; CI uses licensed/synthetic fixtures.
+
+Live account/voice/photo acceptance requires the phone; simulated tests do not establish entitlement, voice naturalness or artwork accuracy.
 
 ## W08 — GPS replay and end-to-end validation
 
@@ -79,6 +85,8 @@ Dependencies: W04, W05, W06, W07.
 - [ ] GitHub Actions runs unit/integration/emulator tests without paid credentials or real traces.
 - [ ] Publish installable APK, checksums, test reports and documented manual device verification.
 
-## First milestone gate
+## Scope clarification
 
-Requires repository publication, a successful GitHub Actions run, downloadable signed debug APK, honest W02 compatibility test/blocker report and Russian speech recommendation. A local/cloud-shell build does not replace GitHub Actions validation. Account consent cannot be delegated to CI.
+W03 uses external Google Maps, chosen by the user. W04 adapts the advisory order of remaining real goals from actual position; Google Maps owns pedestrian path geometry and path replanning. The app does not remotely replace the destination of an already-open Maps session. Raw straight-line distances are labeled accordingly.
+
+W05 uses SQLite transactions instead of Room to retain terminal memory and canonical aliases. W08 tests do not contact OpenAI or spend plan usage. Final on-phone checks remain explicit acceptance work.
