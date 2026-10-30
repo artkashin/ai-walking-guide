@@ -16,6 +16,7 @@ class GuidePolicyTest {
     }
     @Test fun inaccurateFarEmptyAndUngroundedResultsAreSilent() {
         assertNull(GuidePolicy.candidate(origin.copy(accuracy=120f),listOf(poi("p")),emptySet()))
+        assertNull(GuidePolicy.candidate(origin.copy(accuracy=Float.NaN),listOf(poi("p")),emptySet()))
         assertNull(GuidePolicy.candidate(origin,listOf(poi("far",Position(56.0,38.0))),emptySet()))
         assertNull(GuidePolicy.candidate(origin,emptyList(),emptySet()))
         assertNull(GuidePolicy.candidate(origin,listOf(poi("short").copy(extract="name")),emptySet()))

@@ -29,7 +29,8 @@ class PhoneLocation(context: Context,private val update: (Position)->Unit,privat
     override fun onLocationChanged(location: Location) {
         // No last-known or stale fixes are used to trigger a story.
         val age=(SystemClock.elapsedRealtimeNanos()-location.elapsedRealtimeNanos)/1_000_000
-        if(age !in 0..30000 || !location.hasAccuracy())return
+        if(age !in 0..30000 || !location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy<=0)return
+        if(!location.latitude.isFinite() || !location.longitude.isFinite() || location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0)return
         if(location.isFromMockProvider) problem("Используется тестовый источник геолокации.")
         update(Position(location.latitude,location.longitude,location.accuracy))
     }

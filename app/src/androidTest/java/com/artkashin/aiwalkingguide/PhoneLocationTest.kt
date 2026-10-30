@@ -33,11 +33,11 @@ class PhoneLocationTest {
             manager.setTestProviderEnabled(LocationManager.GPS_PROVIDER,true)
             instrumentation.runOnMainSync{source.start()}
             fun fix(age: Long)=Location(LocationManager.GPS_PROVIDER).apply {
-                latitude=51.508;longitude=-0.128;accuracy=10f;time=System.currentTimeMillis()-age
+                latitude=51.508;longitude=if(age>0)-0.1282 else -0.128;accuracy=10f;time=System.currentTimeMillis()-age
                 elapsedRealtimeNanos=SystemClock.elapsedRealtimeNanos()-age*1_000_000
             }
             manager.setTestProviderLocation(LocationManager.GPS_PROVIDER,fix(60000))
-            assertFalse("Stale replay must not trigger narration",received.await(1,TimeUnit.SECONDS))
+            assertFalse("Stale replay must not trigger narration",received.await(6,TimeUnit.SECONDS))
             manager.setTestProviderLocation(LocationManager.GPS_PROVIDER,fix(0))
             assertTrue("Fresh replay fix must reach the guide",received.await(15,TimeUnit.SECONDS))
             assertEquals(51.508,result.get().lat,0.00001)

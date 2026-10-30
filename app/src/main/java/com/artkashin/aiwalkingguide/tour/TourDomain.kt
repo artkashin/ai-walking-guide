@@ -20,7 +20,7 @@ enum class NarrationState { RESERVED, PLAYING, PAUSED, COMPLETED, SKIPPED }
 /** Navigation is intentionally absent from eligibility. */
 object GuidePolicy {
     fun candidate(position: Position, pois: List<Poi>, excluded: Set<String>, radius: Double = 160.0): Poi? {
-        if (position.accuracy > 60 || position.accuracy <= 0) return null
+        if (!position.accuracy.isFinite() || position.accuracy > 60 || position.accuracy <= 0) return null
         return pois.filter { it.id !in excluded && it.aliases.none(excluded::contains) &&
             it.extract.length >= 100 && position.distance(it.position) <= radius }
             .minByOrNull { position.distance(it.position) }
