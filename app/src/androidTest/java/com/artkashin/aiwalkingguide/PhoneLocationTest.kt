@@ -4,6 +4,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.core.app.ActivityScenario
 import com.artkashin.aiwalkingguide.tour.PhoneLocation
 import com.artkashin.aiwalkingguide.tour.Position
 import org.junit.Assert.*
@@ -20,6 +21,9 @@ class PhoneLocationTest {
         shell("pm grant ${context.packageName} android.permission.ACCESS_COARSE_LOCATION")
         shell("pm grant ${context.packageName} android.permission.ACCESS_FINE_LOCATION")
         shell("appops set ${context.packageName} android:mock_location allow")
+        if(android.os.Build.VERSION.SDK_INT>=28)shell("cmd location set-location-enabled true")
+        else shell("settings put secure location_mode 3")
+        val activity=ActivityScenario.launch(MainActivity::class.java)
         val manager=context.getSystemService(LocationManager::class.java)
         val result=AtomicReference<Position>();val received=CountDownLatch(1)
         val source=PhoneLocation(context,{result.set(it);received.countDown()},{})
@@ -41,6 +45,7 @@ class PhoneLocationTest {
             instrumentation.runOnMainSync{source.stop()}
             try { manager.removeTestProvider(LocationManager.GPS_PROVIDER) }catch(_: Exception){}
             shell("appops set ${context.packageName} android:mock_location default")
+            activity.close()
         }
     }
 }
