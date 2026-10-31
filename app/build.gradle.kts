@@ -16,6 +16,10 @@ android {
         versionName = "0.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    if (providers.gradleProperty("voiceModelSmoke").isPresent) {
+        sourceSets.getByName("androidTest").java.srcDir("src/voiceModelSmoke/java")
+        sourceSets.getByName("androidTest").assets.srcDir(rootProject.file(".voice-model"))
+    }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -36,6 +40,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.6.1")
     implementation("androidx.media3:media3-session:1.6.1")
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
+    implementation("com.alphacephei:vosk-android:0.3.75")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

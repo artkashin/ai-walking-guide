@@ -8,9 +8,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 import com.artkashin.aiwalkingguide.audio.NarrationItem
+import com.artkashin.aiwalkingguide.voice.VoiceTurn
 
 /** SQLite transactions keep reservations and alias resolution atomic across process restart. */
-class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(context, name, null, 2) {
+class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(context, name, null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE session(id TEXT PRIMARY KEY, active INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE memory(session TEXT NOT NULL, poi TEXT NOT NULL, state TEXT NOT NULL, title TEXT NOT NULL, PRIMARY KEY(session,poi))")
@@ -18,16 +19,18 @@ class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(con
         db.execSQL("CREATE TABLE cache(poi TEXT PRIMARY KEY, payload TEXT NOT NULL)")
         db.execSQL("CREATE TABLE goal(session TEXT NOT NULL, poi TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(session,poi))")
         createNarrations(db)
+        createVoiceTurns(db)
     }
     private fun createNarrations(db: SQLiteDatabase) { db.execSQL("CREATE TABLE narration(session TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, listened INTEGER NOT NULL DEFAULT 0, touched INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(session,id))") }
-    override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) { if(old<2)createNarrations(db) }
+    private fun createVoiceTurns(db: SQLiteDatabase){db.execSQL("CREATE TABLE voice_turns(session TEXT PRIMARY KEY,payload TEXT NOT NULL)")}
+    override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) { if(old<2)createNarrations(db);if(old<3)createVoiceTurns(db) }
     @Synchronized fun saveNarration(session: String,item: NarrationItem) {
-        val payload=JSONObject().put("id",item.id).put("poi",JSONObject(encode(item.poi))).put("text",item.text).put("kind",item.kind).toString()
+        val payload=JSONObject().put("id",item.id).put("poi",item.poi?.let{JSONObject(encode(it))}?:JSONObject.NULL).put("text",item.text).put("kind",item.kind).put("title",item.title).toString()
         writableDatabase.execSQL("INSERT OR IGNORE INTO narration(session,id,payload,listened) VALUES(?,?,?,?)",arrayOf(session,item.id,payload,if(item.listened)1 else 0))
         writableDatabase.execSQL("UPDATE narration SET payload=?,touched=(SELECT COALESCE(MAX(touched),0)+1 FROM narration WHERE session=?) WHERE session=? AND id=?",arrayOf(payload,session,session,item.id))
     }
     private fun decodeNarration(payload: String,listened: Boolean): NarrationItem {
-        val j=JSONObject(payload);return NarrationItem(j.getString("id"),decode(j.getJSONObject("poi").toString()),j.getString("text"),j.optString("kind","POI"),listened)
+        val j=JSONObject(payload);val poi=j.optJSONObject("poi")?.let{decode(it.toString())};return NarrationItem(j.getString("id"),poi,j.getString("text"),j.optString("kind","POI"),listened,j.optString("title",poi?.title?:"Ответ гида"))
     }
     @Synchronized fun narration(session: String,id: String): NarrationItem? {
         val key=canonical(id)
@@ -44,6 +47,19 @@ class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(con
     @Synchronized fun markListened(session: String,id: String) { writableDatabase.execSQL("UPDATE narration SET listened=1,touched=(SELECT COALESCE(MAX(touched),0)+1 FROM narration WHERE session=?) WHERE session=? AND id=?",arrayOf(session,session,id)) }
     @Synchronized fun listened(session: String): Set<String> = readableDatabase.rawQuery("SELECT id FROM narration WHERE session=? AND listened=1 UNION SELECT poi FROM memory WHERE session=? AND state='COMPLETED'",arrayOf(session,session)).use {
         buildSet { while(it.moveToNext())add(canonical(it.getString(0))) }
+    }
+    @Synchronized fun heardTopics(session: String): List<NarrationItem> = readableDatabase.rawQuery("SELECT payload,listened FROM narration WHERE session=? AND listened=1 ORDER BY touched DESC",arrayOf(session)).use {
+        buildList { while(size<3 && it.moveToNext()){val item=decodeNarration(it.getString(0),true);if(item.kind=="POI")add(item)} }
+    }
+    @Synchronized fun voiceTurns(session: String): List<VoiceTurn> = readableDatabase.rawQuery("SELECT payload FROM voice_turns WHERE session=?",arrayOf(session)).use { cursor ->
+        if(!cursor.moveToFirst())emptyList() else {
+            val a=JSONArray(cursor.getString(0));(0 until a.length()).map{i->val j=a.getJSONObject(i);val id=j.getString("id");VoiceTurn(j.getString("question"),id,j.getString("answer"),narration(session,id)?.listened==true)}
+        }
+    }
+    @Synchronized fun addVoiceTurn(session: String,turn: VoiceTurn) {
+        val turns=(voiceTurns(session)+turn).takeLast(6)
+        val payload=JSONArray(turns.map{JSONObject().put("question",it.question).put("answer",it.answer).put("id",it.answerId)}).toString()
+        writableDatabase.execSQL("INSERT OR REPLACE INTO voice_turns VALUES(?,?)",arrayOf(session,payload))
     }
     @Synchronized fun session(): String {
         readableDatabase.rawQuery("SELECT id FROM session WHERE active=1 LIMIT 1", null).use { if(it.moveToFirst()) return it.getString(0) }
@@ -113,7 +129,7 @@ class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(con
         else writableDatabase.execSQL("DELETE FROM goal WHERE session=? AND poi=?",arrayOf(session,p.id))
     }
     @Synchronized fun clear() { writableDatabase.beginTransaction();try {
-        listOf("memory","alias","cache","goal","narration","session").forEach { writableDatabase.delete(it,null,null) }
+        listOf("memory","alias","cache","goal","narration","voice_turns","session").forEach { writableDatabase.delete(it,null,null) }
         writableDatabase.setTransactionSuccessful()
     } finally { writableDatabase.endTransaction() } }
 }

@@ -41,3 +41,7 @@ The documented OAuth inference contract has no reviewed client flag guaranteeing
 ## D010 — Login completion and plan permission are separate (0.2.1)
 
 User feedback confirms callback reachability on their phone, not post-callback success. Browser confirmation must wait for validated secure persistence. Preserve verified identity when plan permission is missing, prohibit inference in that state and request consent only through the official flow on explicit selection. Never relax signature, nonce, state or issuer checks to make the UI appear connected. Reconcile UI state on resume; expose only safe stage/error codes for the remaining live-device investigation. The custom return link is UI-only, not an alternative OAuth redirect.
+
+## 2026-10-31 — Hands-free MVP (#9), stacked on player #10
+
+Use optional on-device Vosk Russian grammar wake detection and command ASR after explicit per-tour activation; no new paid speech service or account key. Use a half-duplex microphone-off gate during narration/response preparation with a two-second cooldown; full-duplex barge-in awaits physical echo tests. Send only accepted question text and bounded tour context through the existing subscription guard. Keep dialogue locally and never turn manual conversation/replay into an automatic POI-history reset. Details, provider comparison and unmeasured device checks: [HANDS_FREE.md](HANDS_FREE.md).

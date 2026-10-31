@@ -90,3 +90,7 @@ Dependencies: W04, W05, W06, W07.
 W03 uses external Google Maps, chosen by the user. W04 adapts the advisory order of remaining real goals from actual position; Google Maps owns pedestrian path geometry and path replanning. The app does not remotely replace the destination of an already-open Maps session. Raw straight-line distances are labeled accordingly.
 
 W05 uses SQLite transactions instead of Room to retain terminal memory and canonical aliases. W08 tests do not contact OpenAI or spend plan usage. Final on-phone checks remain explicit acceptance work.
+
+## Follow-up issues #10 and #9
+
+Implement #10 first on `feat/persistent-narration-player` (PR #11), then #9 on stacked `feat/hands-free-guide`. Keep both open until required CI and device acceptance; do not merge automatically. Shared-player controls and explicit replay precede local voice command routing. Full-duplex wake/barge-in and target-phone battery acceptance are follow-up gates, not assumed properties of the MVP. Provider/verification details: [HANDS_FREE.md](HANDS_FREE.md).
