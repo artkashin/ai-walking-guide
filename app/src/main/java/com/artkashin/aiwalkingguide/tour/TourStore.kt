@@ -38,6 +38,9 @@ class TourStore(context: Context,name: String="tours.db") : SQLiteOpenHelper(con
             if(it.moveToFirst())decodeNarration(it.getString(0),it.getInt(1)==1) else null
         }
     }
+    @Synchronized fun narrations(session: String): List<NarrationItem> = readableDatabase.rawQuery("SELECT payload,listened FROM narration WHERE session=? ORDER BY touched DESC,rowid DESC",arrayOf(session)).use {
+        buildList { while(it.moveToNext())add(decodeNarration(it.getString(0),it.getInt(1)==1)) }
+    }
     @Synchronized fun lastNarration(session: String): NarrationItem? = readableDatabase.rawQuery("SELECT payload,listened FROM narration WHERE session=? ORDER BY touched DESC,rowid DESC LIMIT 1",arrayOf(session)).use {
         if(it.moveToFirst())decodeNarration(it.getString(0),it.getInt(1)==1) else null
     }

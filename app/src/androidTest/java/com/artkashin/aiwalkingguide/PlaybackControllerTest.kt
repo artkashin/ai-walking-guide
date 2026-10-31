@@ -30,6 +30,7 @@ class PlaybackControllerTest {
             val second=NarrationItem("other",poi.copy(id="other"),"Второй текст")
             store.saveNarration("legacy",first);store.saveNarration("legacy",second);store.saveNarration("legacy",first)
             assertEquals("old",store.lastNarration("legacy")?.id)
+            assertEquals(listOf("old","other"),store.narrations("legacy").map{it.id})
             store.markListened("legacy","old");assertTrue(store.lastNarration("legacy")!!.listened)
         } finally { store.close();context.deleteDatabase(name) }
     }
