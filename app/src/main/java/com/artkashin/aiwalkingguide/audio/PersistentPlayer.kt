@@ -26,11 +26,7 @@ fun PersistentPlayer(state: PlaybackState,onPlay: ()->Unit,onPause: ()->Unit,onS
     val slider=remember(state.id,state.durationMs) {
         SliderState(value=state.positionMs.toFloat(),valueRange=0f..state.durationMs.coerceAtLeast(1).toFloat())
     }
-    var lastSeek by remember(slider){mutableStateOf<Long?>(null)}
-    fun commitSeek() {
-        val target=slider.value.toLong()
-        if(lastSeek!=target){lastSeek=target;seek(target)}
-    }
+    fun commitSeek() { seek(slider.value.toLong()) }
     slider.onValueChangeFinished={commitSeek()}
     // Material3 1.3's drag-finished callback can be suppressed while the Foundation
     // draggable still marks its state as dragging. Commit the actual release too.
