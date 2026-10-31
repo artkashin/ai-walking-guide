@@ -1,6 +1,12 @@
 name: Offline Russian voice model smoke
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/voice-model.yml'
+      - 'app/build.gradle.kts'
+      - 'app/src/main/java/com/artkashin/aiwalkingguide/voice/**'
+      - 'app/src/voiceModelSmoke/**'
 permissions:
   contents: read
 jobs:
