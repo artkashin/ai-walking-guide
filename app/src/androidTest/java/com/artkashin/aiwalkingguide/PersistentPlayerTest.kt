@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -43,10 +44,12 @@ class PersistentPlayerTest {
         compose.waitForIdle()
         compose.runOnIdle{assertTrue("Slider tap must dispatch seek, got ${seeks.get()}",seeks.get() in 0..20000)}
         seeks.set(-1)
-        timeline.performTouchInput{swipeLeft()}
+        timeline.performTouchInput{swipe(start=center,end=Offset(width*.25f,centerY),durationMillis=600)}
+        compose.waitUntil(3000){seeks.get()>=0}
         compose.runOnIdle{assertTrue("Slider backward drag must dispatch seek, got ${seeks.get()}",seeks.get() in 0..10000)}
         seeks.set(-1)
-        timeline.performTouchInput{swipeRight()}
+        timeline.performTouchInput{swipe(start=Offset(width*.25f,centerY),end=Offset(width*.75f,centerY),durationMillis=600)}
+        compose.waitUntil(3000){seeks.get()>=0}
         compose.runOnIdle{assertTrue("Slider forward drag must dispatch seek, got ${seeks.get()}",seeks.get() in 10000..20000)}
     }
 }
