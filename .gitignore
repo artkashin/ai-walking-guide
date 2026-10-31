@@ -10,3 +10,6 @@ credentials*
 .env*
 __pycache__/
 *.pyc
+
+# Optional public Russian model for native CI smoke; never committed.
+.voice-model/

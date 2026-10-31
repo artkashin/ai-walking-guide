@@ -51,3 +51,9 @@ The original foundation setup required replacing the retired SDK tools package w
 ## Access and scope decisions
 
 The user installed the GitHub app on personal artkashin; publishing/issues/Actions work. The user explicitly approved external Maps without new billing and preparation of official subscription-only ChatGPT sign-in. All changes remain within ai-walking-guide. Tokens and real location/photo data are absent from CI.
+
+## 2026-10-31 — User issues #10 / #9
+
+- #10 is implemented in PR #11: shared pinned player, actual Media3 progress/timeline, paused seek, stop/replay, local archive and explicit completed/skipped replay without resetting automatic memory. Build/lint/JVM checks pass. Real WAV Media3/controller tests passed on API 26/35; narrow-screen Compose gesture verification is being corrected and rerun before declaring acceptance.
+- #9 is implemented as an incremental stacked MVP on `feat/hands-free-guide`: explicit per-tour microphone foreground service; optional pinned Vosk Russian model; local wake/command ASR; local player commands; bounded contextual GPT follow-ups with fresh approximate position; shared answer playback and local dialogue memory. JVM/build/lint and test-APK compilation pass in the cloud workspace. GitHub build, API 26/35 instrumentation and the opt-in actual native-model smoke are required before review readiness.
+- No new paid service/account, unofficial ChatGPT endpoint or microphone audio upload is introduced. Half-duplex fallback is explicit: pause via player/notification before voice interruption. Acoustic accuracy, OEM lockscreen/headsets, battery and actual subscription follow-up remain unmeasured physical-device acceptance. See [HANDS_FREE.md](HANDS_FREE.md).

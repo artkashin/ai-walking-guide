@@ -10,6 +10,8 @@ import com.artkashin.aiwalkingguide.auth.ChatGptAccount
 import com.artkashin.aiwalkingguide.auth.AuthFailure
 import com.artkashin.aiwalkingguide.auth.AuthStage
 import com.artkashin.aiwalkingguide.net.*
+import com.artkashin.aiwalkingguide.voice.*
+import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +26,8 @@ data class GuideState(
     val active: Boolean=false,val position: Position?=null,val pois: List<Poi> = emptyList(),val goals: List<Poi> = emptyList(),
     val excluded: Set<String> = emptySet(),val history: List<Pair<String,String>> = emptyList(),
     val message: String="Начните прогулку: гид найдёт реальные места рядом с вами.",
+    val voice: VoiceState=VoiceState(),val voiceModelReady: Boolean=false,val modelDownload: Int?=null,val questionBusy: Boolean=false,val questionDraft: String="",
+    val heardTopics: List<NarrationItem> = emptyList(),val voiceTurns: List<VoiceTurn> = emptyList(),
     val playback: PlaybackState=PlaybackState(),val selectedNarration: NarrationItem?=null,val listened: Set<String> = emptySet(),
     val busy: Boolean=false,val current: Poi?=null,val text: String="",val playing: Boolean=false,val resumable: Boolean=false,
     val connected: Boolean=false,val planEnabled: Boolean=false,val authStatus: String="",val authenticating: Boolean=false,val models: List<Pair<String,String>> = emptyList(),val model: String="",
@@ -44,11 +48,18 @@ class TourController(private val context: Context,private val db: TourStore=Tour
     private var authGeneration=0L
     private var generation=0L;private var searchPosition: Position?=null;private var searchAt=0L
     private var lastFix=0L
+    private val offlineModel=OfflineVoiceModel(context)
+    private var modelJob: Job?=null
+    private val voiceEngine=HandsFreeEngine(context,{phase->mutable.update{it.copy(voice=it.voice.copy(phase=phase))}},
+        {automatic(false);notice("Гид слушает команду после фразы пробуждения.")},
+        {handleVoiceCommand(it)},
+        {message->mutable.update{it.copy(voice=it.voice.copy(enabled=false,phase=VoicePhase.ERROR,error=message))};notice(message)})
     private val location=PhoneLocation(context,{onPosition(it)},{notice(it)})
     private var manualPlayback=false
     private var lastRequestedPoi: Poi?=null
     private val speaker=audioFactory(PlaybackCallbacks({ snapshot ->
         val old=state.value
+        if(snapshot.id==old.playback.id)voiceEngine.setOutputBusy(snapshot.phase in setOf(PlaybackPhase.PLAYING,PlaybackPhase.BUFFERING))
         if(snapshot.id.isNotEmpty() && snapshot.id==old.playback.id && !(old.playback.phase==PlaybackPhase.ERROR && snapshot.phase==PlaybackPhase.STOPPED)) {
             mutable.update{it.copy(playback=snapshot.copy(listened=it.selectedNarration?.listened==true),playing=snapshot.phase==PlaybackPhase.PLAYING,
                 resumable=snapshot.phase in setOf(PlaybackPhase.PAUSED,PlaybackPhase.STOPPED,PlaybackPhase.COMPLETED))}
@@ -60,14 +71,15 @@ class TourController(private val context: Context,private val db: TourStore=Tour
     },{ id -> if(id==state.value.playback.id)complete() },{ id -> if(id==state.value.playback.id){notice("Ошибка воспроизведения. Можно повторить вручную.");skip(true)} }))
     init {
         db.recover(session);refreshMemory();loadGoals()
+        mutable.update{it.copy(voiceModelReady=offlineModel.ready(),voice=it.voice.copy(phrase=prefs.getString("wake-phrase","окей гид")?:"окей гид"))}
         db.lastNarration(session)?.let { item ->
             lastRequestedPoi=item.poi
-            mutable.update{it.copy(selectedNarration=item,text=item.text,playback=PlaybackState("restored:${item.id}",item.poi.title,PlaybackPhase.STOPPED,listened=item.listened))}
+            mutable.update{it.copy(selectedNarration=item,text=item.text,playback=PlaybackState("restored:${item.id}",item.title,PlaybackPhase.STOPPED,listened=item.listened))}
         }
         File(context.cacheDir,"museum").listFiles()?.forEach{it.delete()}
     }
     fun notice(message: String) { mutable.update{it.copy(message=message)} }
-    private fun refreshMemory() { mutable.update{it.copy(excluded=db.excluded(session),history=db.history(session),listened=db.listened(session))} }
+    private fun refreshMemory() { mutable.update{it.copy(excluded=db.excluded(session),history=db.history(session),listened=db.listened(session),heardTopics=db.heardTopics(session),voiceTurns=db.voiceTurns(session))} }
     fun consentSearch(value: Boolean) { prefs.edit().putBoolean("wiki-consent",value).apply() }
     fun searchConsent()=prefs.getBoolean("wiki-consent",false)
     fun billingConfirmed(value: Boolean) { mutable.update{it.copy(creditsDisabled=value)};if(!value) { automatic(false);skip();museumJob?.cancel() } }
@@ -79,14 +91,14 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         mutable.update{it.copy(active=true,replay=false,message="Ждём свежую позицию GPS…")};searchPosition=null;location.start()
     }
     fun stop() {
-        location.stop();searchJob?.cancel();museumJob?.cancel();skip()
+        stopHandsFree();location.stop();searchJob?.cancel();museumJob?.cancel();skip()
         mutable.update{it.copy(active=false,automatic=false,busy=false,museumBusy=false)}
     }
-    fun newSession() { stop();session=db.newSession();refreshMemory();loadGoals();lastRequestedPoi=null;speaker.stop(true);mutable.update{it.copy(text="",pois=emptyList(),replay=false,selectedNarration=null,playback=PlaybackState())};notice("Новая экскурсия. Память предыдущей сохранена локально.") }
-    fun clearData() { stop();db.clear();speaker.clearCache();File(context.filesDir,"narration").deleteRecursively();session=db.session();refreshMemory();loadGoals();lastRequestedPoi=null;mutable.update{it.copy(pois=emptyList(),position=null,text="",museumCandidate=null,museumAnswer="",selectedNarration=null,playback=PlaybackState())};notice("История и кэш удалены. Для отключения ChatGPT используйте «Выйти».") }
+    fun newSession() { stop();session=db.newSession();refreshMemory();loadGoals();lastRequestedPoi=null;speaker.stop(true);mutable.update{it.copy(text="",pois=emptyList(),replay=false,voiceTurns=emptyList(),heardTopics=emptyList(),questionDraft="",selectedNarration=null,playback=PlaybackState())};notice("Новая экскурсия. Память предыдущей сохранена локально.") }
+    fun clearData() { stop();db.clear();speaker.clearCache();File(context.filesDir,"narration").deleteRecursively();session=db.session();refreshMemory();loadGoals();lastRequestedPoi=null;mutable.update{it.copy(pois=emptyList(),position=null,text="",museumCandidate=null,museumAnswer="",voiceTurns=emptyList(),heardTopics=emptyList(),questionDraft="",selectedNarration=null,playback=PlaybackState())};notice("История и кэш удалены. Для отключения ChatGPT используйте «Выйти».") }
     private fun onPosition(position: Position) {
         if(!state.value.active || state.value.replay)return
-        lastFix=android.os.SystemClock.elapsedRealtime()
+        lastFix=position.fixElapsedRealtimeMs?:android.os.SystemClock.elapsedRealtime()
         mutable.update{it.copy(position=position)}
         if(position.accuracy>60) { notice("Точность GPS ±${position.accuracy.toInt()} м. Автоматические рассказы ждут более точной позиции.");return }
         state.value.goals.filter{position.accuracy<=30 && position.distance(it.position)<40}.forEach{db.goal(session,it,false)}
@@ -117,7 +129,7 @@ class TourController(private val context: Context,private val db: TourStore=Tour
     }
     private fun maybeNarrate() {
         val s=state.value
-        if(!s.active || !s.automatic || s.current!=null || !s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank() || s.replay)return
+        if(!s.active || !s.automatic || s.current!=null || s.questionBusy || voiceEngine.handlingCommand || s.playback.phase in setOf(PlaybackPhase.GENERATING,PlaybackPhase.BUFFERING,PlaybackPhase.PLAYING,PlaybackPhase.PAUSED) || !s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank() || s.replay)return
         val p=s.position?:return
         if(android.os.SystemClock.elapsedRealtime()-lastFix>30000)return
         GuidePolicy.candidate(p,s.pois,s.excluded)?.let{narrate(it,false)}
@@ -138,7 +150,7 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         if(archived==null && (!s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank())) {
             notice("Для нового рассказа войдите в ChatGPT, подтвердите отключение платных кредитов и выберите модель. Сохранённые рассказы доступны без нового запроса.");return
         }
-        if(s.current!=null) { if(!manual)return;skip() }
+        if(s.current!=null || s.questionBusy || s.playback.phase in setOf(PlaybackPhase.GENERATING,PlaybackPhase.BUFFERING,PlaybackPhase.PLAYING,PlaybackPhase.PAUSED)) { if(!manual)return;skip() }
         if(manual)automatic(false)
         if(!alreadyKnown && !db.reserve(session,p))return
         manualPlayback=alreadyKnown
@@ -171,27 +183,27 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         mutable.update{it.copy(text=item.text,selectedNarration=item,playback=it.playback.copy(phase=PlaybackPhase.BUFFERING),message="Подготавливаем русский звук на телефоне…")}
         val files=speaker.prepare(item.text)
         if(epoch!=generation)return
-        speaker.play(files,playbackId,item.poi.title)
-        notice("${item.poi.title}. Управление — в постоянном плеере внизу экрана.")
+        speaker.play(files,playbackId,item.title)
+        notice("${item.title}. Управление — в постоянном плеере внизу экрана.")
     }
     /** Shared explicit playback for saved POIs, museum narration and conversation answers. */
     fun playNarrationItem(item: NarrationItem) {
         skip();automatic(false);manualPlayback=true;lastRequestedPoi=item.poi
         val epoch=++generation;val id="$session:$epoch"
         speaker.stop(true)
-        mutable.update{it.copy(current=item.poi,selectedNarration=item,text=item.text,playback=PlaybackState(id,item.poi.title,PlaybackPhase.BUFFERING,listened=item.listened))}
+        mutable.update{it.copy(current=item.poi,selectedNarration=item,text=item.text,playback=PlaybackState(id,item.title,PlaybackPhase.BUFFERING,listened=item.listened))}
         storyJob=scope.launch {
             try { synthesizeAndPlay(item,epoch,id) }
             catch(e: CancellationException){throw e}
             catch(e: Exception){if(epoch==generation){notice(safe(e));skip(true)}}
         }
     }
-    fun release() { stop();cancelAuth();scope.cancel();speaker.release();db.close() }
+    fun release() { stop();cancelAuth();modelJob?.cancel();voiceEngine.release();scope.cancel();speaker.release();db.close() }
     private fun trimTextCache(dir: File) { dir.listFiles()?.sortedByDescending{it.lastModified()}?.drop(200)?.forEach{it.delete()} }
     fun pause() { automatic(false);speaker.pause() }
     fun resume() {
         val s=state.value
-        if(s.current!=null && s.playback.durationMs>0) { speaker.resume();return }
+        if(s.playback.phase in setOf(PlaybackPhase.PLAYING,PlaybackPhase.PAUSED,PlaybackPhase.BUFFERING) && s.playback.durationMs>0) { speaker.resume();return }
         if(s.selectedNarration!=null)playNarrationItem(s.selectedNarration)
         else lastRequestedPoi?.let{narrate(it,true)}
     }
@@ -207,20 +219,81 @@ class TourController(private val context: Context,private val db: TourStore=Tour
     fun stopPlayback() { automatic(false);skip() }
     fun skip(error: Boolean=false) {
         generation++;storyJob?.cancel();storyJob=null
+        voiceEngine.responseDone()
         if(!manualPlayback)state.value.current?.let{db.state(session,it,NarrationState.SKIPPED)}
         speaker.stop()
-        mutable.update{it.copy(current=null,playing=false,resumable=it.selectedNarration!=null,
+        mutable.update{it.copy(current=null,questionBusy=false,playing=false,resumable=it.selectedNarration!=null,
             playback=it.playback.copy(positionMs=0,phase=if(error)PlaybackPhase.ERROR else if(it.playback.id.isEmpty())PlaybackPhase.EMPTY else PlaybackPhase.STOPPED))}
         refreshMemory()
     }
     private fun complete() {
         val s=state.value
-        if(s.current==null)return
-        if(!manualPlayback)db.state(session,s.current,NarrationState.COMPLETED)
+        if(s.selectedNarration==null)return
+        if(!manualPlayback && s.current!=null)db.state(session,s.current,NarrationState.COMPLETED)
         s.selectedNarration?.let{db.markListened(session,it.id)}
         mutable.update{it.copy(current=null,playing=false,resumable=true,selectedNarration=it.selectedNarration?.copy(listened=true),playback=it.playback.copy(phase=PlaybackPhase.COMPLETED,listened=true))}
         refreshMemory()
         if(!manualPlayback)scope.launch { delay(4000);maybeNarrate() }
+    }
+    fun installVoiceModel() {
+        if(modelJob?.isActive==true)return
+        mutable.update{it.copy(modelDownload=0)}
+        modelJob=scope.launch {
+            try { offlineModel.install{percent->mutable.update{it.copy(modelDownload=percent)}};mutable.update{it.copy(voiceModelReady=true)};notice("Русская офлайн-модель готова. Включите hands-free во время прогулки.") }
+            catch(e: CancellationException){throw e}
+            catch(_: Exception){notice("Не удалось загрузить и проверить модель. Проверьте интернет и свободное место; микрофон не включён.")}
+            finally { mutable.update{it.copy(modelDownload=null)} }
+        }
+    }
+    fun wakePhrase(value: String) {
+        if(state.value.voice.enabled)return
+        val phrase=VoiceCommands.normalize(value)
+        if(phrase.length !in 5..50 || !phrase.matches(Regex("[а-я]+(?: [а-я]+){1,3}"))){notice("Фраза должна состоять из 2–4 русских слов.");return}
+        prefs.edit().putString("wake-phrase",phrase).apply();mutable.update{it.copy(voice=it.voice.copy(phrase=phrase))}
+    }
+    fun startHandsFree() {
+        if(!state.value.active || state.value.replay || !offlineModel.ready()){notice("Сначала начните прогулку и загрузите офлайн-модель.");return}
+        if(androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){notice("Микрофон не разрешён. Hands-free выключен.");return}
+        mutable.update{it.copy(voice=it.voice.copy(enabled=true,phase=VoicePhase.LOADING,error=""))}
+        voiceEngine.setOutputBusy(state.value.playback.phase in setOf(PlaybackPhase.PLAYING,PlaybackPhase.BUFFERING) || state.value.questionBusy)
+        voiceEngine.start(offlineModel.path,state.value.voice.phrase)
+    }
+    fun stopHandsFree() { voiceEngine.stop();mutable.update{it.copy(voice=it.voice.copy(enabled=false,phase=VoicePhase.OFF))} }
+    fun editQuestion(value: String) { automatic(false);mutable.update{it.copy(questionDraft=value.take(2000))} }
+    fun handleVoiceCommand(text: String) {
+        if(!state.value.active || !state.value.voice.enabled)return
+        when(VoiceCommands.classify(text)) {
+            LocalVoiceCommand.PAUSE->{pause();notice("Рассказ и автоматические рассказы на паузе.");voiceEngine.responseDone()}
+            LocalVoiceCommand.STOP_AUDIO->{stopPlayback();notice("Звук остановлен.");voiceEngine.responseDone()}
+            LocalVoiceCommand.RESUME->{resume();voiceEngine.responseDone()}
+            LocalVoiceCommand.END_TOUR->{stop();context.stopService(android.content.Intent(context,GuideService::class.java));notice("Прогулка и микрофон остановлены.")}
+            LocalVoiceCommand.QUESTION->askQuestion(text,true)
+        }
+    }
+    fun askQuestion(question: String=state.value.questionDraft,shareLocation: Boolean=true) {
+        val s=state.value;val text=question.trim().take(2000)
+        if(text.isBlank()){voiceEngine.responseDone();return}
+        if(s.replay || !s.connected || !s.planEnabled || !s.creditsDisabled || s.model.isBlank()) {
+            notice("Для вопроса GPT подключите подписку, выберите модель и подтвердите отключение дополнительных кредитов. В реплее запросы отключены.");voiceEngine.responseDone();return
+        }
+        val prompt=GuideQuestionContext.prompt(text,s.heardTopics,s.selectedNarration,s.playback,s.voiceTurns,s.position,lastFix,
+            android.os.SystemClock.elapsedRealtime(),s.goals,s.pois,shareLocation)
+        stopPlayback();manualPlayback=true
+        val epoch=++generation;val id="$session:$epoch";val answerId="answer:${UUID.randomUUID()}"
+        voiceEngine.beginResponse()
+        mutable.update{it.copy(current=null,selectedNarration=null,text="",questionBusy=true,questionDraft=text,playback=PlaybackState(id,"Ответ гида",PlaybackPhase.GENERATING),message="Отправляем вопрос с контекстом прогулки…")}
+        storyJob=scope.launch {
+            try {
+                val answer=account.generate(s.model,prompt)
+                if(epoch!=generation)return@launch
+                val item=NarrationItem(answerId,null,answer,"FOLLOW_UP",title="Ответ гида")
+                db.saveNarration(session,item);db.addVoiceTurn(session,VoiceTurn(text,answerId,answer))
+                refreshMemory();mutable.update{it.copy(questionDraft="")}
+                synthesizeAndPlay(item,epoch,id)
+            } catch(e: CancellationException){throw e}
+            catch(e: Exception){if(epoch==generation){notice(safe(e));skip(true)}}
+            finally { if(epoch==generation){mutable.update{it.copy(questionBusy=false)};voiceEngine.setOutputBusy(state.value.playback.phase in setOf(PlaybackPhase.PLAYING,PlaybackPhase.BUFFERING));voiceEngine.responseDone()} }
+        }
     }
     fun refreshConnection() {
         val connected=account.connected();val plan=account.planEnabled()
@@ -246,7 +319,7 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         }
     }
     fun cancelAuth() { authGeneration++;account.cancel();authJob?.cancel();mutable.update{it.copy(authenticating=false)};refreshConnection() }
-    fun logout() { cancelAuth();automatic(false);skip();museumJob?.cancel();val old=account.disconnectLocal();scope.launch { try { account.revoke(old) } catch(_: Exception) { notice("Токены удалены локально. Не удалось подтвердить отзыв на сервере — отключите приложение в настройках ChatGPT.") } };mutable.update{it.copy(connected=false,planEnabled=false,authStatus=account.diagnostic(),models=emptyList(),model="",creditsDisabled=false,museumBusy=false,museumCandidate=null)};notice("Токены удалены с телефона. Отозвать связь с приложением можно в настройках ChatGPT.") }
+    fun logout() { cancelAuth();stopHandsFree();automatic(false);skip();museumJob?.cancel();val old=account.disconnectLocal();scope.launch { try { account.revoke(old) } catch(_: Exception) { notice("Токены удалены локально. Не удалось подтвердить отзыв на сервере — отключите приложение в настройках ChatGPT.") } };mutable.update{it.copy(connected=false,planEnabled=false,authStatus=account.diagnostic(),models=emptyList(),model="",creditsDisabled=false,museumBusy=false,museumCandidate=null)};notice("Токены удалены с телефона. Отозвать связь с приложением можно в настройках ChatGPT.") }
     fun loadModels() { if(state.value.replay)return;scope.launch {
         try { val models=account.models();mutable.update{it.copy(models=models,model=it.model.takeIf{old->models.any{m->m.first==old}}?:models.firstOrNull()?.first.orEmpty())};if(models.isEmpty())notice("В аккаунте нет доступных моделей.") }
         catch(e: Exception) { if(e is CancellationException)throw e;notice(safe(e)) }

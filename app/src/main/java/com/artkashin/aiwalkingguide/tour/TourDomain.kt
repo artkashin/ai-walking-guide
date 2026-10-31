@@ -3,7 +3,7 @@ package com.artkashin.aiwalkingguide.tour
 import kotlin.math.*
 import java.net.URLEncoder
 
-data class Position(val lat: Double, val lon: Double, val accuracy: Float = 10f) {
+data class Position(val lat: Double, val lon: Double, val accuracy: Float = 10f, val fixElapsedRealtimeMs: Long? = null) {
     init { require(lat.isFinite() && lon.isFinite() && lat in -90.0..90.0 && lon in -180.0..180.0) }
     fun distance(other: Position): Double {
         val a = sin(Math.toRadians(other.lat - lat) / 2).pow(2) + cos(Math.toRadians(lat)) *

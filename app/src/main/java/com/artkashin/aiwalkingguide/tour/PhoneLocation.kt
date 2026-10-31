@@ -32,7 +32,7 @@ class PhoneLocation(context: Context,private val update: (Position)->Unit,privat
         if(age !in 0..30000 || !location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy<=0)return
         if(!location.latitude.isFinite() || !location.longitude.isFinite() || location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0)return
         if(location.isFromMockProvider) problem("Используется тестовый источник геолокации.")
-        update(Position(location.latitude,location.longitude,location.accuracy))
+        update(Position(location.latitude,location.longitude,location.accuracy,location.elapsedRealtimeNanos/1_000_000))
     }
     override fun onProviderDisabled(provider: String) { problem("Источник геолокации отключён. Ожидаем новую позицию.") }
     override fun onProviderEnabled(provider: String)=Unit

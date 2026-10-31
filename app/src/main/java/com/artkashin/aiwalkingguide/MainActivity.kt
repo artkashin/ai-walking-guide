@@ -26,6 +26,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artkashin.aiwalkingguide.tour.*
 import com.artkashin.aiwalkingguide.audio.PersistentPlayer
+import com.artkashin.aiwalkingguide.voice.HandsFreePanel
+import com.artkashin.aiwalkingguide.voice.ConversationPanel
 import java.io.File
 
 class MainActivity: ComponentActivity() {
@@ -61,6 +63,7 @@ fun GuideHome() {
         permissions.launch(items.toTypedArray())
     }
     Scaffold(bottomBar={ Column {
+        if(s.voice.enabled)Text("Микрофон: ${s.voice.phase.label}",Modifier.padding(horizontal=16.dp),style=MaterialTheme.typography.bodySmall)
         PersistentPlayer(s.playback,{guide.resume()},{guide.pause()},{guide.stopPlayback()},{guide.seekTo(it)})
         NavigationBar {
         listOf("Прогулка","Музей","Настройки").forEachIndexed { i,label -> NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Text(listOf("↗","▣","☰")[i])},label={Text(label)}) }
@@ -69,6 +72,7 @@ fun GuideHome() {
             Text("Гид рядом",style=MaterialTheme.typography.headlineLarge)
             Text("Идите своим путём",style=MaterialTheme.typography.titleMedium)
             Card(Modifier.fillMaxWidth()) { Text(s.message,Modifier.padding(16.dp)) }
+            if(tab!=2)ConversationPanel(guide,s)
             when(tab) {
                 0 -> {
                     if(s.replay) Text("ТЕСТОВЫЙ GPS-РЕПЛЕЙ • сетевые запросы отключены",color=MaterialTheme.colorScheme.error)
@@ -156,6 +160,7 @@ fun GuideHome() {
                     Text("Объём рассказа: ${s.detail}. Длительность зависит от содержания.")
                     Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) { listOf("Краткий","Обычный","Подробный").forEach { detail -> FilterChip(selected=s.detail==detail,onClick={guide.detail(detail)},label={Text(detail)}) } }
                     HorizontalDivider()
+                    HandsFreePanel(guide,s)
                     Text("Данные и тестирование",style=MaterialTheme.typography.titleLarge)
                     Text("История мест и звук хранятся локально. Во время поиска координаты отправляются Wikipedia; для AI-рассказа — факты о выбранном объекте. Фото отправляется OpenAI только после отдельного подтверждения. Весь трек прогулки на сервер не загружается.")
                     TextButton(onClick={newConfirm=true}) { Text("Новая экскурсия") }
