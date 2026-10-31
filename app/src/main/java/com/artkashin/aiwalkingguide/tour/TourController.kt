@@ -254,6 +254,10 @@ class TourController(private val context: Context,private val db: TourStore=Tour
     fun startHandsFree() {
         if(!state.value.active || state.value.replay || !offlineModel.ready()){notice("Сначала начните прогулку и загрузите офлайн-модель.");return}
         if(androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){notice("Микрофон не разрешён. Hands-free выключен.");return}
+        val notifications=context.getSystemService(android.app.NotificationManager::class.java)
+        if(!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled() || notifications.getNotificationChannel("tour")?.importance==android.app.NotificationManager.IMPORTANCE_NONE) {
+            notice("Разрешите уведомления прогулки в настройках Android: hands-free требует видимого уведомления. Микрофон не включён.");return
+        }
         mutable.update{it.copy(voice=it.voice.copy(enabled=true,phase=VoicePhase.LOADING,error=""))}
         voiceEngine.setOutputBusy(state.value.playback.phase in setOf(PlaybackPhase.PLAYING,PlaybackPhase.BUFFERING) || state.value.questionBusy)
         voiceEngine.start(offlineModel.path,state.value.voice.phrase)
