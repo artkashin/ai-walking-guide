@@ -2,6 +2,8 @@ package com.artkashin.aiwalkingguide.audio
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -14,9 +16,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersistentPlayer(state: PlaybackState,onPlay: ()->Unit,onPause: ()->Unit,onStop: ()->Unit,onSeek: (Long)->Unit) {
-    var drag by remember(state.id) { mutableStateOf<Float?>(null) }
+    val seek by rememberUpdatedState(onSeek)
+    val interactions=remember(state.id){MutableInteractionSource()}
+    val dragging by interactions.collectIsDraggedAsState()
+    val slider=remember(state.id,state.durationMs) {
+        SliderState(value=state.positionMs.toFloat(),valueRange=0f..state.durationMs.coerceAtLeast(1).toFloat()).also { s ->
+            s.onValueChangeFinished={seek(s.value.toLong())}
+        }
+    }
+    LaunchedEffect(state.positionMs,dragging) { if(!dragging)slider.value=state.positionMs.toFloat() }
     Surface(tonalElevation=5.dp,modifier=Modifier.fillMaxWidth().testTag("persistent-player")) {
         Column(Modifier.padding(horizontal=16.dp,vertical=6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text(state.title.ifBlank{"Плеер гида"},maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleSmall)
@@ -36,10 +47,8 @@ fun PersistentPlayer(state: PlaybackState,onPlay: ()->Unit,onPause: ()->Unit,onS
                         Canvas(Modifier.size(24.dp)){drawRect(ink,Offset(size.width*.15f,size.height*.15f),Size(size.width*.7f,size.height*.7f))}
                     }
                 }
-                Text("${PlaybackTimeline.time((drag?.toLong()?:state.positionMs))} / ${PlaybackTimeline.time(state.durationMs)}",style=MaterialTheme.typography.bodySmall)
-                Slider(value=(drag?:state.positionMs.toFloat()).coerceIn(0f,state.durationMs.coerceAtLeast(1).toFloat()),
-                    valueRange=0f..state.durationMs.coerceAtLeast(1).toFloat(),enabled=state.canSeek,
-                    onValueChange={drag=it},onValueChangeFinished={drag?.let{onSeek(it.toLong())};drag=null},
+                Text("${PlaybackTimeline.time(if(dragging)slider.value.toLong() else state.positionMs)} / ${PlaybackTimeline.time(state.durationMs)}",style=MaterialTheme.typography.bodySmall)
+                Slider(state=slider,interactionSource=interactions,enabled=state.canSeek,
                     modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("narration-seek").semantics{contentDescription="Перемотка рассказа"})
             }
         }

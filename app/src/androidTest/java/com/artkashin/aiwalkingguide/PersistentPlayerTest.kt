@@ -39,6 +39,6 @@ class PersistentPlayerTest {
         compose.onNodeWithContentDescription("Остановить рассказ").assertIsDisplayed()
         assertEquals(1,plays.get())
         compose.onNodeWithTag("narration-seek").performTouchInput{swipeLeft()}
-        compose.runOnIdle{assertTrue(seeks.get() in 0..20000)}
+        compose.runOnIdle{assertTrue("Slider gesture must dispatch seek, got ${seeks.get()}",seeks.get() in 0..20000)}
     }
 }
