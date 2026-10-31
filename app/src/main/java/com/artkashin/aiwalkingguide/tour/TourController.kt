@@ -24,7 +24,7 @@ data class GuideState(
     val active: Boolean=false,val position: Position?=null,val pois: List<Poi> = emptyList(),val goals: List<Poi> = emptyList(),
     val excluded: Set<String> = emptySet(),val history: List<Pair<String,String>> = emptyList(),
     val message: String="Начните прогулку: гид найдёт реальные места рядом с вами.",
-    val playback: PlaybackState=PlaybackState(),val selectedNarration: NarrationItem?=null,val listened: Set<String> = emptySet(),
+    val savedNarrations: List<NarrationItem> = emptyList(),val playback: PlaybackState=PlaybackState(),val selectedNarration: NarrationItem?=null,val listened: Set<String> = emptySet(),
     val busy: Boolean=false,val current: Poi?=null,val text: String="",val playing: Boolean=false,val resumable: Boolean=false,
     val connected: Boolean=false,val planEnabled: Boolean=false,val authStatus: String="",val authenticating: Boolean=false,val models: List<Pair<String,String>> = emptyList(),val model: String="",
     val automatic: Boolean=false,val detail: String="Обычный",val creditsDisabled: Boolean=false,
@@ -67,7 +67,7 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         File(context.cacheDir,"museum").listFiles()?.forEach{it.delete()}
     }
     fun notice(message: String) { mutable.update{it.copy(message=message)} }
-    private fun refreshMemory() { mutable.update{it.copy(excluded=db.excluded(session),history=db.history(session),listened=db.listened(session))} }
+    private fun refreshMemory() { mutable.update{it.copy(excluded=db.excluded(session),history=db.history(session),listened=db.listened(session),savedNarrations=db.narrations(session))} }
     fun consentSearch(value: Boolean) { prefs.edit().putBoolean("wiki-consent",value).apply() }
     fun searchConsent()=prefs.getBoolean("wiki-consent",false)
     fun billingConfirmed(value: Boolean) { mutable.update{it.copy(creditsDisabled=value)};if(!value) { automatic(false);skip();museumJob?.cancel() } }
@@ -167,7 +167,7 @@ class TourController(private val context: Context,private val db: TourStore=Tour
         }
     }
     private suspend fun synthesizeAndPlay(item: NarrationItem,epoch: Long,playbackId: String) {
-        db.saveNarration(session,item)
+        db.saveNarration(session,item);refreshMemory()
         mutable.update{it.copy(text=item.text,selectedNarration=item,playback=it.playback.copy(phase=PlaybackPhase.BUFFERING),message="Подготавливаем русский звук на телефоне…")}
         val files=speaker.prepare(item.text)
         if(epoch!=generation)return

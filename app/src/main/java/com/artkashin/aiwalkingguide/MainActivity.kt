@@ -49,6 +49,7 @@ fun GuideHome() {
     var autoConsent by remember { mutableStateOf(false) }
     var clearConfirm by remember { mutableStateOf(false) }
     var newConfirm by remember { mutableStateOf(false) }
+    var libraryOpen by rememberSaveable { mutableStateOf(false) }
     fun open(url: String) { try { context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url))) } catch(_: Exception) { guide.notice("Нет приложения для открытия ссылки.") } }
     fun startService() { try { ContextCompat.startForegroundService(context,Intent(context,GuideService::class.java)) } catch(_: Exception) { guide.notice("Не удалось запустить прогулку. Откройте приложение и разрешите геолокацию.") } }
     val permissions=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -115,6 +116,13 @@ fun GuideHome() {
                             }
                             TextButton(onClick={open(p.source)}) { Text("Источник Wikipedia · CC BY-SA") }
                         } }
+                    }
+                    if(s.savedNarrations.isNotEmpty()) {
+                        TextButton(onClick={libraryOpen=!libraryOpen}){Text(if(libraryOpen)"Свернуть сохранённые рассказы" else "Сохранённые рассказы (${s.savedNarrations.size})")}
+                        if(libraryOpen)s.savedNarrations.forEach { item ->
+                            Text(item.poi.title+(if(item.listened)" · Прослушано" else " · Сохранено"))
+                            OutlinedButton(onClick={guide.playNarrationItem(item)},enabled=!s.replay){Text("Воспроизвести сохранённый рассказ")}
+                        }
                     }
                     if(s.history.isNotEmpty()) {
                         Text("Память экскурсии",style=MaterialTheme.typography.titleLarge)

@@ -4,6 +4,8 @@ The Scaffold bottom bar contains one player above the navigation bar. Content sc
 
 All POI/museum narration and explicit generic NarrationItem playback share NarrationAudio/Media3. The engine publishes actual state and aggregate position every 250 ms. Chunk durations come from media metadata with a Media3 duration fallback. Seeking maps a global position to its file/offset and retains pause state. MediaSession coordinates system/headset commands; focus loss and headphone unplugging follow Media3 state. This does not claim tested Bluetooth behavior on every OEM.
 
+The collapsible saved-story library on Walk retains access to older POI, museum and generic narration even when nearby search results change; explicit selection uses the same offline player.
+
 Stop retains the selected item and text for explicit play/replay. Completion leaves the title, listened marker, duration and replay control visible. Session narration text and a separate manually-listened flag are stored locally. Database version 1 -> 2 adds this archive without resetting tour memory. After process death the last selected item restores stopped; it does not automatically resume or claim to restore an exact interrupted position.
 
 Explicit replay of completed/skipped content uses saved text, needs no new GPT request, pauses automatic narration, and never reserves/reset its terminal automatic-memory state. Manual completion can mark the archive as listened while automatic history remains skipped. Missing cached audio is synthesized again from the saved text. If narration was skipped before any text existed, an explicit new request still requires the normal account/plan gate.
