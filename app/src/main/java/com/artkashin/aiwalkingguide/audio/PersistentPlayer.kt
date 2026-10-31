@@ -2,6 +2,7 @@ package com.artkashin.aiwalkingguide.audio
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.material3.*
@@ -23,11 +24,22 @@ fun PersistentPlayer(state: PlaybackState,onPlay: ()->Unit,onPause: ()->Unit,onS
     val interactions=remember(state.id){MutableInteractionSource()}
     val dragging by interactions.collectIsDraggedAsState()
     val slider=remember(state.id,state.durationMs) {
-        SliderState(value=state.positionMs.toFloat(),valueRange=0f..state.durationMs.coerceAtLeast(1).toFloat()).also { s ->
-            s.onValueChangeFinished={seek(s.value.toLong())}
+        SliderState(value=state.positionMs.toFloat(),valueRange=0f..state.durationMs.coerceAtLeast(1).toFloat())
+    }
+    var lastSeek by remember(slider){mutableStateOf<Long?>(null)}
+    fun commitSeek() {
+        val target=slider.value.toLong()
+        if(lastSeek!=target){lastSeek=target;seek(target)}
+    }
+    slider.onValueChangeFinished={commitSeek()}
+    // Material3 1.3's drag-finished callback can be suppressed while the Foundation
+    // draggable still marks its state as dragging. Commit the actual release too.
+    LaunchedEffect(slider,interactions) {
+        interactions.interactions.collect { interaction ->
+            if(interaction is DragInteraction.Stop)commitSeek()
         }
     }
-    LaunchedEffect(state.positionMs,dragging) { if(!dragging)slider.value=state.positionMs.toFloat() }
+    LaunchedEffect(state.positionMs) { if(!dragging)slider.value=state.positionMs.toFloat() }
     Surface(tonalElevation=5.dp,modifier=Modifier.fillMaxWidth().testTag("persistent-player")) {
         Column(Modifier.padding(horizontal=16.dp,vertical=6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text(state.title.ifBlank{"Плеер гида"},maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleSmall)
