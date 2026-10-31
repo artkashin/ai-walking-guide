@@ -38,7 +38,13 @@ class PersistentPlayerTest {
         compose.onNodeWithContentDescription("Повторить рассказ").assertIsEnabled().assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Остановить рассказ").assertIsDisplayed()
         assertEquals(1,plays.get())
-        compose.onNodeWithTag("narration-seek").performTouchInput{swipeLeft()}
+        val timeline=compose.onNodeWithTag("narration-seek").assertIsDisplayed().assertIsEnabled()
+        println("TIMELINE: "+timeline.fetchSemanticsNode().boundsInRoot+" root="+compose.onRoot().fetchSemanticsNode().boundsInRoot)
+        timeline.performTouchInput{click(center)}
+        compose.waitForIdle()
+        compose.runOnIdle{assertTrue("Slider tap must dispatch seek, got ${seeks.get()}",seeks.get() in 0..20000)}
+        seeks.set(-1)
+        timeline.performTouchInput{swipeLeft()}
         compose.runOnIdle{assertTrue("Slider gesture must dispatch seek, got ${seeks.get()}",seeks.get() in 0..20000)}
     }
 }
