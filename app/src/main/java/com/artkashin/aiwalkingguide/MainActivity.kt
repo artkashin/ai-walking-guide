@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artkashin.aiwalkingguide.tour.*
+import com.artkashin.aiwalkingguide.audio.PersistentPlayer
 import java.io.File
 
 class MainActivity: ComponentActivity() {
@@ -59,9 +60,11 @@ fun GuideHome() {
         if(Build.VERSION.SDK_INT>=33)items.add(Manifest.permission.POST_NOTIFICATIONS)
         permissions.launch(items.toTypedArray())
     }
-    Scaffold(bottomBar={ NavigationBar {
+    Scaffold(bottomBar={ Column {
+        PersistentPlayer(s.playback,{guide.resume()},{guide.pause()},{guide.stopPlayback()},{guide.seekTo(it)})
+        NavigationBar {
         listOf("Прогулка","Музей","Настройки").forEachIndexed { i,label -> NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Text(listOf("↗","▣","☰")[i])},label={Text(label)}) }
-    } }) { padding ->
+    } } }) { padding ->
         Column(Modifier.padding(padding).safeDrawingPadding().fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
             Text("Гид рядом",style=MaterialTheme.typography.headlineLarge)
             Text("Идите своим путём",style=MaterialTheme.typography.titleMedium)
@@ -80,11 +83,7 @@ fun GuideHome() {
                         Card { Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                             Text(s.current!!.title,style=MaterialTheme.typography.titleLarge)
                             Text(if(s.text.isBlank())"Создаём рассказ…" else s.text)
-                            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                if(s.playing) Button(onClick={guide.pause()}) { Text("Пауза") }
-                                else Button(onClick={guide.resume()},enabled=s.resumable) { Text("Продолжить") }
-                                OutlinedButton(onClick={guide.skip()}) { Text("Пропустить") }
-                            }
+                            Text("Пауза, остановка и перемотка — в плеере внизу экрана.",style=MaterialTheme.typography.bodySmall)
                         } }
                     }
                     if(s.goals.isNotEmpty()) {
@@ -108,10 +107,10 @@ fun GuideHome() {
                         val used=p.id in s.excluded || p.aliases.any(s.excluded::contains)
                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                             Text(p.title,style=MaterialTheme.typography.titleMedium)
-                            s.position?.let { Text("${it.distance(p.position).toInt()} м по прямой${if(used)" • уже рассказано или пропущено" else ""}") }
+                            s.position?.let { Text("${it.distance(p.position).toInt()} м по прямой${if(p.id in s.listened || p.aliases.any(s.listened::contains))" • Прослушано" else if(used)" • Пропущено или уже начато" else ""}") }
                             Text(p.extract.take(420))
                             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                Button(onClick={guide.narrate(p)},enabled=!used && s.current==null && !s.replay) { Text("Рассказать") }
+                                Button(onClick={guide.narrate(p)},enabled=!s.replay) { Text(if(used)"Повторить" else "Рассказать") }
                                 TextButton(onClick={guide.addGoal(p,true)},enabled=!s.replay) { Text("В маршрут") }
                             }
                             TextButton(onClick={open(p.source)}) { Text("Источник Wikipedia · CC BY-SA") }
