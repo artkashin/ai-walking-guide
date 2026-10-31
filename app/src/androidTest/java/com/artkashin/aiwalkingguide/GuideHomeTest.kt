@@ -9,8 +9,9 @@ class GuideHomeTest {
     @get:Rule val compose=createAndroidComposeRule<MainActivity>()
     @Test fun homeAndMuseumRequireExplicitActions() {
         compose.onNodeWithText("Гид рядом").assertIsDisplayed()
-        compose.onNodeWithText("Начать прогулку").assertIsDisplayed()
+        compose.onNodeWithText("Начать прогулку").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Музей",useUnmergedTree=true).performClick()
+        compose.onNodeWithTag("persistent-player").assertIsDisplayed()
         compose.onNodeWithText("Название музея или зала").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Выбрать фотографию").performScrollTo().assertIsDisplayed()
     }
