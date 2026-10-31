@@ -9,6 +9,9 @@ on:
       - 'app/src/voiceModelSmoke/**'
 permissions:
   contents: read
+concurrency:
+  group: voice-model-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   native-model:
     runs-on: ubuntu-latest

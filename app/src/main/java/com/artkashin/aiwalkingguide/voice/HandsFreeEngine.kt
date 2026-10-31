@@ -58,7 +58,7 @@ class HandsFreeEngine(private val context: Context,private val onState: (VoicePh
         val audio=context.getSystemService(AudioManager::class.java)
         var mic: AudioRecord?=null;val ring=PcmRing();var lastPhase=VoicePhase.OFF;var commandMode=false
         fun post(block: ()->Unit){handler.post{if(token==generation)block()}}
-        fun closeMic(){synchronized(recorderLock){if(recorder===mic)recorder=null;try{mic?.stop()}catch(_: Exception){};mic?.release();mic=null};ring.clear()}
+        fun closeMic(){synchronized(recorderLock){if(recorder===mic)recorder=null;try{mic?.stop()}catch(_: Exception){};try{mic?.release()}catch(_: Exception){};mic=null};ring.clear()}
         try {
             LibVosk.vosk_set_log_level(-1)
             model=Model(path.path)
@@ -132,6 +132,6 @@ class HandsFreeEngine(private val context: Context,private val onState: (VoicePh
                 else->"Не удалось запустить локальный микрофон или модель. Голосовой режим выключен; используйте плеер и текстовый вопрос."
             }
             post{onState(VoicePhase.ERROR);onFailure(message)}
-        } finally { deviceCallback?.let{audio.unregisterAudioDeviceCallback(it)};closeMic();wake?.close();command?.close();model?.close() }
+        } finally { runCatching{deviceCallback?.let{audio.unregisterAudioDeviceCallback(it)}};closeMic();runCatching{wake?.close()};runCatching{command?.close()};runCatching{model?.close()} }
     }
 }
